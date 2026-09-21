@@ -1,0 +1,2704 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matriz Digital de Línea Base — CRUE–SEM–CRED Chocó 2026</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --bg:#08171a;
+    --bg-panel:#0f2427;
+    --bg-card:#122b2e;
+    --bg-input:#0a1c1f;
+    --line:#1e3d40;
+    --teal:#2dd4bf;
+    --teal-dim:#1c7a70;
+    --ink:#eaf6f5;
+    --ink-dim:#8fb0ae;
+    --mono:'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+    --sans:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+    --verde:#22c55e; --amarillo:#eab308; --naranja:#f97316; --rojo:#ef4444; --gris:#5b7573;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    display:flex; min-height:100vh; font-size:14.5px;
+  }
+  ::selection{ background:var(--teal-dim); color:#fff; }
+
+  /* ---- Sidebar ---- */
+  nav.side{
+    width:236px; flex-shrink:0; background:var(--bg-panel); border-right:1px solid var(--line);
+    display:flex; flex-direction:column; padding:1.25rem 0.9rem; gap:0.25rem; position:sticky; top:0; height:100vh; overflow-y:auto;
+  }
+  .brand{ padding:0.5rem 0.5rem 1.25rem; }
+  .brand .k1{ font-family:var(--mono); font-size:0.68rem; letter-spacing:0.08em; color:var(--teal); }
+  .brand h1{ font-size:1.02rem; line-height:1.35; margin-top:0.35rem; font-weight:650; }
+  .brand .k2{ font-size:0.72rem; color:var(--ink-dim); margin-top:0.35rem; }
+
+  .navgroup-label{ font-family:var(--mono); font-size:0.62rem; color:var(--ink-dim); padding:0.9rem 0.6rem 0.3rem; letter-spacing:0.05em; }
+  .navitem{
+    display:flex; align-items:center; gap:0.6rem; padding:0.55rem 0.6rem; border-radius:8px; cursor:pointer;
+    color:var(--ink-dim); font-size:0.86rem; border:1px solid transparent;
+  }
+  .navitem:hover{ background:rgba(45,212,191,0.06); color:var(--ink); }
+  .navitem.active{ background:rgba(45,212,191,0.12); color:var(--teal); border-color:var(--teal-dim); }
+  .navitem .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; opacity:0.6; flex-shrink:0; }
+
+  .side-footer{ margin-top:auto; padding:0.8rem 0.6rem; font-size:0.68rem; color:var(--ink-dim); border-top:1px solid var(--line); font-family:var(--mono); }
+  .syncstatus{ display:flex; align-items:center; gap:0.4rem; }
+  .syncstatus .dot{ width:7px; height:7px; border-radius:50%; background:var(--gris); flex-shrink:0; }
+  .syncstatus.ok .dot{ background:var(--verde); }
+  .syncstatus.pending .dot{ background:var(--amarillo); }
+  .syncstatus.off .dot{ background:var(--rojo); }
+  .small-btn{ padding:0.4rem 0.6rem; font-size:0.7rem; }
+
+  /* ---- Main ---- */
+  main{ flex:1; min-width:0; padding:1.75rem clamp(1rem,3vw,2.5rem); }
+  .view{ display:none; }
+  .view.active{ display:block; animation:fadeIn .18s ease; }
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+
+  .page-head{ display:flex; justify-content:space-between; align-items:flex-end; gap:1rem; margin-bottom:1.4rem; flex-wrap:wrap; }
+  .page-head h2{ font-size:1.4rem; font-weight:650; }
+  .page-head p{ color:var(--ink-dim); font-size:0.85rem; margin-top:0.2rem; }
+  .ctx-pill{ font-family:var(--mono); font-size:0.72rem; color:var(--teal); background:rgba(45,212,191,0.08); border:1px solid var(--teal-dim); padding:0.4rem 0.7rem; border-radius:20px; white-space:nowrap; }
+
+  /* ---- Context bar ---- */
+  .ctxbar{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:0.7rem; margin-bottom:1.5rem; }
+  .ctxbar select{ width:100%; }
+  .ctxbar input{ width:100%; }
+  label.small{ display:block; font-size:0.68rem; color:var(--ink-dim); margin-bottom:0.3rem; font-family:var(--mono); }
+
+  input,select,textarea{
+    background:var(--bg-input); border:1px solid var(--line); color:var(--ink);
+    border-radius:7px; padding:0.5rem 0.6rem; font-family:var(--sans); font-size:0.85rem; width:100%;
+  }
+  input:focus,select:focus,textarea:focus{ outline:2px solid var(--teal); outline-offset:1px; border-color:var(--teal); }
+  textarea{ resize:vertical; min-height:2.4rem; }
+
+  /* ---- Cards / grid ---- */
+  .grid-kpi{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:0.8rem; margin-bottom:1.75rem; }
+  .kpi{ background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:1rem 1.1rem; }
+  .kpi .val{ font-family:var(--mono); font-size:1.65rem; font-weight:600; color:var(--teal); }
+  .kpi .lbl{ font-size:0.74rem; color:var(--ink-dim); margin-top:0.25rem; }
+  .kpi.warn .val{ color:var(--naranja); }
+  .kpi.crit .val{ color:var(--rojo); }
+
+  .grid-dims{ display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:0.85rem; }
+  .dimcard{
+    background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:1.1rem;
+    cursor:pointer; transition:border-color .15s;
+  }
+  .dimcard:hover{ border-color:var(--teal-dim); }
+  .dimcard .num{ font-family:var(--mono); color:var(--ink-dim); font-size:0.7rem; }
+  .dimcard h3{ font-size:0.95rem; margin-top:0.3rem; line-height:1.3; min-height:2.4em; }
+  .bar{ height:6px; background:var(--bg-input); border-radius:4px; margin-top:0.85rem; overflow:hidden; }
+  .bar > div{ height:100%; background:var(--teal); border-radius:4px; transition:width .2s; }
+  .dimcard .meta{ display:flex; justify-content:space-between; margin-top:0.5rem; font-size:0.72rem; color:var(--ink-dim); font-family:var(--mono); }
+
+  /* ---- Question list ---- */
+  .backlink{ font-size:0.8rem; color:var(--teal); cursor:pointer; display:inline-flex; align-items:center; gap:0.35rem; margin-bottom:0.9rem; }
+  .qcard{ background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:0.7rem; overflow:hidden; }
+  .qhead{ display:flex; align-items:center; gap:0.8rem; padding:0.85rem 1.1rem; cursor:pointer; }
+  .qhead .qid{ font-family:var(--mono); font-size:0.72rem; color:var(--ink-dim); flex-shrink:0; width:2.6rem; }
+  .qhead .qtext{ flex:1; font-size:0.88rem; line-height:1.4; }
+  .qhead .qstatus{ flex-shrink:0; width:9px; height:9px; border-radius:50%; }
+  .qbody{ display:none; padding:0 1.1rem 1.1rem; border-top:1px solid var(--line); }
+  .respuesta-block{ background:rgba(45,212,191,0.05); border:1px solid var(--teal-dim); border-radius:8px; padding:0.8rem; margin-top:0.9rem; }
+  .respuesta-block textarea{ min-height:3.2rem; }
+  .escala-def{ font-size:0.68rem; color:var(--ink-dim); margin-top:0.35rem; min-height:1.6em; line-height:1.3; }
+  .registro-fecha{ font-size:0.7rem; color:var(--ink-dim); margin-top:0.6rem; font-family:var(--mono); }
+  .qcard.open .qbody{ display:block; }
+  .qgrid{ display:grid; grid-template-columns:repeat(4,1fr); gap:0.6rem; margin-top:0.9rem; }
+  .qgrid.two{ grid-template-columns:repeat(2,1fr); }
+  .qfull{ grid-column:1/-1; }
+  @media(max-width:760px){ .qgrid{ grid-template-columns:repeat(2,1fr); } .ctxbar{ grid-template-columns:1fr 1fr; } }
+
+  .crit-tag{ font-family:var(--mono); font-size:0.72rem; padding:0.3rem 0.6rem; border-radius:5px; display:inline-block; margin-top:0.5rem; }
+
+  /* ---- Charts ---- */
+  .chartrow{ display:grid; grid-template-columns:1.1fr 1fr; gap:1rem; margin-bottom:1rem; }
+  @media(max-width:900px){ .chartrow{ grid-template-columns:1fr; } }
+  .panel{ background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:1.2rem; }
+  .panel h4{ font-size:0.85rem; color:var(--ink-dim); font-weight:600; margin-bottom:0.9rem; font-family:var(--mono); text-transform:none; }
+  .barrow{ display:flex; align-items:center; gap:0.6rem; margin-bottom:0.55rem; }
+  .barrow .lbl{ width:150px; font-size:0.72rem; color:var(--ink-dim); flex-shrink:0; }
+  .barrow .track{ flex:1; height:9px; background:var(--bg-input); border-radius:5px; overflow:hidden; }
+  .barrow .fill{ height:100%; border-radius:5px; }
+  .barrow .num{ font-family:var(--mono); font-size:0.72rem; width:2.4rem; text-align:right; flex-shrink:0; }
+
+  .legend{ display:flex; gap:1rem; flex-wrap:wrap; margin-top:0.8rem; font-size:0.72rem; color:var(--ink-dim); }
+  .legend span{ display:inline-flex; align-items:center; gap:0.35rem; }
+  .sw{ width:9px; height:9px; border-radius:2px; display:inline-block; }
+
+  button.btn{
+    background:var(--teal); color:#03211d; border:none; border-radius:7px; padding:0.6rem 1.1rem;
+    font-weight:600; font-size:0.82rem; cursor:pointer; font-family:var(--sans);
+  }
+  button.btn:hover{ background:#5eead4; }
+  button.btn.ghost{ background:transparent; border:1px solid var(--line); color:var(--ink); }
+  button.btn.ghost:hover{ border-color:var(--teal); color:var(--teal); }
+  .btnrow{ display:flex; gap:0.6rem; flex-wrap:wrap; margin-top:1rem; }
+
+  .findings-list{ display:flex; flex-direction:column; gap:0.6rem; }
+  .finding{ background:var(--bg-card); border:1px solid var(--line); border-left:3px solid var(--rojo); border-radius:8px; padding:0.8rem 1rem; }
+  .finding .id{ font-family:var(--mono); font-size:0.68rem; color:var(--ink-dim); }
+  .finding p{ font-size:0.85rem; margin-top:0.25rem; }
+
+  .savedtick{ position:fixed; bottom:1rem; right:1rem; background:var(--bg-card); border:1px solid var(--teal-dim);
+    color:var(--teal); font-family:var(--mono); font-size:0.72rem; padding:0.5rem 0.9rem; border-radius:8px; opacity:0; transition:opacity .3s; pointer-events:none;}
+  .savedtick.show{ opacity:1; }
+
+  .evidence-block{ grid-column:1/-1; margin-top:1rem; padding-top:0.9rem; border-top:1px dashed var(--line); }
+  .evidencia-list{ display:flex; flex-direction:column; gap:0.5rem; margin-top:0.4rem; }
+  .evidencia-item{ background:var(--bg-input); border-radius:6px; padding:0.6rem 0.8rem; font-size:0.8rem; }
+  .ev-top{ display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; }
+  .ev-desc{ color:var(--ink-dim); margin-top:0.25rem; }
+  .ev-link{ display:inline-block; margin-top:0.25rem; color:var(--teal); font-size:0.75rem; word-break:break-all; }
+  select:disabled, input:disabled, textarea:disabled{ opacity:0.6; cursor:not-allowed; }
+  .informe-doc h2{ font-size:1.3rem; margin:1.2rem 0 0.5rem; border-bottom:1px solid var(--line); padding-bottom:0.4rem; }
+  .informe-doc h3{ font-size:1rem; margin:0.9rem 0 0.4rem; color:var(--teal); }
+  .informe-doc p{ font-size:0.85rem; line-height:1.6; margin-bottom:0.4rem; }
+  .informe-doc table{ width:100%; border-collapse:collapse; margin:0.6rem 0; font-size:0.8rem; }
+  .informe-doc th, .informe-doc td{ border:1px solid var(--line); padding:0.4rem 0.6rem; text-align:left; }
+  @media print{
+    nav.side, .btnrow, .start-presentation-btn{ display:none !important; }
+    body{ display:block; background:#fff; color:#000; }
+    main{ padding:0; }
+    .view{ display:none !important; }
+    .view#view-informe.active{ display:block !important; }
+    .informe-doc{ color:#000; }
+    .informe-doc h2, .informe-doc h3{ color:#000; }
+    .panel{ border:none; background:#fff; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="side">
+  <div class="brand">
+    <div class="k1">CRUE · SEM · CRED — CHOCÓ 2026</div>
+    <h1>Matriz Digital de Levantamiento de Línea Base</h1>
+    <div class="k2">Prototipo offline-first · datos en este navegador</div>
+  </div>
+  <div class="navgroup-label">General</div>
+  <div class="navitem active" data-view="inicio"><span class="dot"></span>Inicio</div>
+  <div class="navitem" data-view="criterios"><span class="dot"></span>Criterios de calificación</div>
+  <div class="navitem" data-view="levantamiento"><span class="dot"></span>Levantamiento</div>
+  <div class="navgroup-label">Análisis</div>
+  <div class="navitem" data-view="dashboard"><span class="dot"></span>Dashboard estadístico</div>
+  <div class="navitem" data-view="indicadores"><span class="dot"></span>Indicadores</div>
+  <div class="navitem" data-view="brechas"><span class="dot"></span>Brechas y priorización</div>
+  <div class="navitem" data-view="analitica"><span class="dot"></span>Analítica</div>
+  <div class="navgroup-label">Módulos operativos</div>
+  <div class="navitem" data-view="crue"><span class="dot"></span>CRUE</div>
+  <div class="navitem" data-view="sem"><span class="dot"></span>SEM</div>
+  <div class="navitem" data-view="cred"><span class="dot"></span>CRED</div>
+  <div class="navitem" data-view="sismo"><span class="dot"></span>Reconstrucción del sismo</div>
+  <div class="navgroup-label">Territorio</div>
+  <div class="navitem" data-view="reps"><span class="dot"></span>Prestadores (REPS)</div>
+  <div class="navitem" data-view="mapa"><span class="dot"></span>Mapa territorial</div>
+  <div class="navitem" data-view="comparativo"><span class="dot"></span>Comparativo territorial</div>
+  <div class="navgroup-label">Informes</div>
+  <div class="navitem" data-view="informe"><span class="dot"></span>Generar diagnóstico</div>
+  <div class="navgroup-label">Datos</div>
+  <div class="navitem" data-view="exportar"><span class="dot"></span>Exportar</div>
+  <div class="side-footer">
+    <div id="syncstatus" class="syncstatus">Sincronización desactivada</div>
+    <div id="rolestatus" style="margin-top:0.35rem;font-size:0.68rem;color:var(--ink-dim);">Sin sesión</div>
+    <button id="btn-sync-now" class="btn ghost small-btn" style="margin-top:0.5rem;width:100%;">Sincronizar ahora</button>
+    <div id="ctxfooter" style="margin-top:0.6rem;">Sin contexto activo</div>
+  </div>
+</nav>
+
+<main>
+
+  <!-- ================= INICIO ================= -->
+  <section class="view active" id="view-inicio">
+    <div class="page-head">
+      <div>
+        <h2>Línea base CRUE–SEM–CRED 2026</h2>
+        <p>Define el contexto del levantamiento y revisa el avance general.</p>
+      </div>
+      <div class="ctx-pill" id="reloj-actual" style="font-family:var(--mono);"></div>
+    </div>
+
+    <div class="panel" style="margin-bottom:1.5rem;">
+      <h4>CONTEXTO DEL LEVANTAMIENTO</h4>
+      <p style="font-size:0.75rem;color:var(--ink-dim);margin-bottom:0.8rem;">Departamento, municipio e institución son listas cerradas — no se pueden escribir mal. Solo Dependencia y Responsable son texto libre.</p>
+      <div class="ctxbar">
+        <div><label class="small">DEPARTAMENTO</label><select id="ctx-departamento"><option value="Chocó">Chocó</option></select></div>
+        <div><label class="small">MUNICIPIO</label><select id="ctx-municipio"><option value="">— Selecciona —</option></select></div>
+        <div><label class="small">INSTITUCIÓN</label><select id="ctx-institucion"><option value="">— Selecciona —</option></select></div>
+        <div id="ctx-institucion-otra-wrap" style="display:none;"><label class="small">NOMBRE DE LA INSTITUCIÓN</label><input id="ctx-institucion-otra" placeholder="Escribe el nombre exacto"></div>
+        <div><label class="small">DEPENDENCIA</label><input id="ctx-dependencia" placeholder="Ej. Regulación médica"></div>
+        <div><label class="small">RESPONSABLE</label><input id="ctx-responsable" placeholder="Nombre del responsable"></div>
+      </div>
+    </div>
+
+    <div class="grid-kpi" id="kpi-inicio"></div>
+
+    <div class="panel">
+      <h4>PROGRESO GENERAL</h4>
+      <div class="bar" style="height:10px;"><div id="bar-general" style="width:0%"></div></div>
+      <p style="margin-top:0.6rem;font-size:0.78rem;color:var(--ink-dim);" id="txt-general"></p>
+    </div>
+  </section>
+
+  <!-- ================= LEVANTAMIENTO ================= -->
+  <section class="view" id="view-levantamiento">
+    <div class="page-head">
+      <div>
+        <h2>Levantamiento de línea base</h2>
+        <p>12 dimensiones · 180 preguntas del instrumento maestro (sin modificar).</p>
+      </div>
+      <div class="ctx-pill" id="pill-lev">Sin contexto</div>
+    </div>
+    <div class="grid-dims" id="grid-dims"></div>
+
+    <div id="dim-detail" style="display:none;">
+      <div class="backlink" id="back-to-dims">← Volver a dimensiones</div>
+      <h3 id="dim-title" style="margin-bottom:0.9rem;font-size:1.05rem;"></h3>
+      <div id="dim-questions"></div>
+    </div>
+  </section>
+
+  <!-- ================= CRITERIOS DE CALIFICACIÓN ================= -->
+  <section class="view" id="view-criterios">
+    <div class="page-head"><div><h2>Criterios de calificación</h2><p>La misma definición para todo el equipo — consúltala si tienes duda al calificar una pregunta.</p></div></div>
+
+    <div class="panel" style="margin-bottom:1rem;">
+      <h4>ESTADO DE VERIFICACIÓN</h4>
+      <table class="informe-doc"><tr><th>Código</th><th>Significado</th></tr>
+        <tr><td>V</td><td>Verificado — se comprobó directamente, con evidencia de primera mano.</td></tr>
+        <tr><td>D</td><td>Documental — existe un documento que lo respalda, no verificado en sitio.</td></tr>
+        <tr><td>PV</td><td>Por verificar — se reportó, pero aún no se pudo confirmar.</td></tr>
+        <tr><td>HB</td><td>Hipótesis de brecha — se sospecha que falta, sin confirmación aún.</td></tr>
+        <tr><td>NA</td><td>No aplica — la pregunta no corresponde a esta institución/contexto.</td></tr>
+      </table>
+    </div>
+
+    <div class="panel" style="margin-bottom:1rem;">
+      <h4>MADUREZ (0–5)</h4>
+      <table class="informe-doc"><tr><th>Nivel</th><th>Significado</th></tr>
+        <tr><td>0</td><td>Inexistente — no hay ninguna capacidad ni evidencia de ella.</td></tr>
+        <tr><td>1</td><td>Inicial — existe de forma informal, depende de personas puntuales.</td></tr>
+        <tr><td>2</td><td>Parcial — existe pero de forma incompleta o inconsistente.</td></tr>
+        <tr><td>3</td><td>Definido — está formalizado (documento, proceso) y se aplica regularmente.</td></tr>
+        <tr><td>4</td><td>Integrado — se conecta con otros procesos/sistemas de la institución.</td></tr>
+        <tr><td>5</td><td>Optimizado — se mide, se mejora continuamente y es referente.</td></tr>
+      </table>
+    </div>
+
+    <div class="panel" style="margin-bottom:1rem;">
+      <h4>IMPACTO (1–5) — consecuencia si la brecha se materializa</h4>
+      <table class="informe-doc" id="tabla-criterios-impacto"><tr><th>Nivel</th><th>Significado</th></tr></table>
+    </div>
+
+    <div class="panel" style="margin-bottom:1rem;">
+      <h4>PROBABILIDAD (1–5) — qué tan seguido ocurre u ocurriría</h4>
+      <table class="informe-doc" id="tabla-criterios-probabilidad"><tr><th>Nivel</th><th>Significado</th></tr></table>
+    </div>
+
+    <div class="panel">
+      <h4>CRITICIDAD = IMPACTO × PROBABILIDAD (se calcula sola, no se escribe a mano)</h4>
+      <table class="informe-doc"><tr><th>Rango</th><th>Clasificación</th><th>Prioridad</th></tr>
+        <tr><td>1 – 4</td><td style="color:var(--verde)">Baja</td><td>P4</td></tr>
+        <tr><td>5 – 9</td><td style="color:var(--amarillo)">Media</td><td>P3</td></tr>
+        <tr><td>10 – 16</td><td style="color:var(--naranja)">Alta</td><td>P2</td></tr>
+        <tr><td>17 – 25</td><td style="color:var(--rojo)">Crítica</td><td>P1</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= DASHBOARD ================= -->
+  <section class="view" id="view-dashboard">
+    <div class="page-head">
+      <div><h2>Dashboard estadístico</h2><p>Madurez, estado de evidencia, criticidad y prioridades — calculados automáticamente.</p></div>
+    </div>
+    <div class="grid-kpi" id="kpi-dashboard"></div>
+    <div class="chartrow">
+      <div class="panel"><h4>MADUREZ PROMEDIO POR DIMENSIÓN (0–5)</h4><div id="chart-madurez"></div></div>
+      <div class="panel"><h4>AVANCE POR DIMENSIÓN (%)</h4><div id="chart-avance"></div></div>
+    </div>
+    <div class="chartrow">
+      <div class="panel">
+        <h4>DISTRIBUCIÓN DE CRITICIDAD</h4>
+        <div id="chart-criticidad"></div>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--verde)"></i>Baja</span>
+          <span><i class="sw" style="background:var(--amarillo)"></i>Media</span>
+          <span><i class="sw" style="background:var(--naranja)"></i>Alta</span>
+          <span><i class="sw" style="background:var(--rojo)"></i>Crítica</span>
+        </div>
+      </div>
+      <div class="panel">
+        <h4>ESTADO DE VERIFICACIÓN</h4>
+        <div id="chart-estado"></div>
+        <div class="legend" id="legend-estado"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= INDICADORES (FASE 8) ================= -->
+  <section class="view" id="view-indicadores">
+    <div class="page-head">
+      <div><h2>Indicadores</h2><p>Mediciones cuantitativas del instrumento base. Cada indicador puede tener varias mediciones a lo largo del tiempo.</p></div>
+    </div>
+    <div id="indicadores-list"></div>
+  </section>
+
+  <!-- ================= BRECHAS Y PRIORIZACIÓN (FASE 9) ================= -->
+  <section class="view" id="view-brechas">
+    <div class="page-head">
+      <div><h2>Brechas y priorización</h2><p>Convierte los hallazgos críticos/altos en brechas formales con causa raíz y plan de acción.</p></div>
+    </div>
+
+    <div class="panel" style="margin-bottom:1.2rem;">
+      <h4>CANDIDATAS AUTOMÁTICAS (criticidad ≥ 10, aún no formalizadas)</h4>
+      <div id="brechas-candidatas"><p style="color:var(--ink-dim);font-size:0.85rem;">Sin candidatas por ahora.</p></div>
+    </div>
+
+    <div class="panel">
+      <h4>BRECHAS FORMALIZADAS</h4>
+      <div id="brechas-registradas"><p style="color:var(--ink-dim);font-size:0.85rem;">Aún no has formalizado ninguna brecha.</p></div>
+    </div>
+  </section>
+
+  <!-- ================= ANALITICA ================= -->
+  <section class="view" id="view-analitica">
+    <div class="page-head">
+      <div><h2>Analítica</h2><p>Lectura automática del levantamiento: qué está fuerte y qué está débil por dimensión.</p></div>
+    </div>
+    <div class="grid-kpi" id="kpi-analitica" style="grid-template-columns:1fr 1fr;"></div>
+  </section>
+
+  <!-- ================= CRUE (FASE 10) ================= -->
+  <section class="view" id="view-crue">
+    <div class="page-head"><div><h2>CRUE Digital</h2><p>Vista especializada de la Dimensión 3 — Operación del CRUE y Regulación.</p></div></div>
+    <div class="grid-kpi" id="kpi-crue"></div>
+    <div class="panel" style="margin-bottom:1rem;"><h4>BRECHAS DE ESTA DIMENSIÓN</h4><div id="brechas-crue"></div></div>
+    <div class="btnrow"><button class="btn ghost" id="btn-ir-crue">Ir al levantamiento de esta dimensión →</button></div>
+  </section>
+
+  <!-- ================= SEM (FASE 10) ================= -->
+  <section class="view" id="view-sem">
+    <div class="page-head"><div><h2>SEM Digital</h2><p>Dimensión 4 — SEM y Atención Prehospitalaria, más el registro operativo de ambulancias.</p></div></div>
+    <div class="grid-kpi" id="kpi-sem"></div>
+    <div class="panel" style="margin-bottom:1rem;"><h4>BRECHAS DE ESTA DIMENSIÓN</h4><div id="brechas-sem"></div></div>
+    <div class="panel">
+      <h4>REGISTRO DE AMBULANCIAS</h4>
+      <div id="ambulancias-list"></div>
+      <div class="qgrid" id="ambulancia-form" style="margin-top:0.8rem;">
+        <input placeholder="Placa" id="amb-placa">
+        <select id="amb-tipo"><option value="basica">Básica</option><option value="medicalizada">Medicalizada</option></select>
+        <select id="amb-estado"><option value="operativa">Operativa</option><option value="fuera_de_servicio">Fuera de servicio</option><option value="en_mision">En misión</option></select>
+        <button class="btn ghost small-btn" id="btn-add-ambulancia">+ Agregar ambulancia</button>
+      </div>
+      <div class="qgrid two" style="margin-top:0.5rem;">
+        <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" id="amb-geo"> Georreferenciada</label>
+        <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" id="amb-com"> Con comunicación</label>
+      </div>
+    </div>
+    <div class="btnrow"><button class="btn ghost" id="btn-ir-sem">Ir al levantamiento de esta dimensión →</button></div>
+  </section>
+
+  <!-- ================= CRED (FASE 10) ================= -->
+  <section class="view" id="view-cred">
+    <div class="page-head"><div><h2>CRED</h2><p>Vista especializada de la Dimensión 5 — CRED, Emergencias y Desastres.</p></div></div>
+    <div class="grid-kpi" id="kpi-cred"></div>
+    <div class="panel" style="margin-bottom:1rem;"><h4>BRECHAS DE ESTA DIMENSIÓN</h4><div id="brechas-cred"></div></div>
+    <div class="btnrow"><button class="btn ghost" id="btn-ir-cred">Ir al levantamiento de esta dimensión →</button></div>
+  </section>
+
+  <!-- ================= SISMO 2026 (FASE 11) ================= -->
+  <section class="view" id="view-sismo">
+    <div class="page-head"><div><h2>Reconstrucción del evento sísmico</h2><p>Línea de tiempo por fase — no asigna responsabilidades, busca lecciones aprendidas.</p></div></div>
+    <div class="panel" style="margin-bottom:1rem;">
+      <h4>NUEVA ENTRADA</h4>
+      <div class="qgrid two">
+        <div><label class="small">EVENTO</label><input id="sis-evento" placeholder="Ej. Sismo Chocó marzo 2026"></div>
+        <div><label class="small">FASE</label>
+          <select id="sis-fase">
+            <option value="ANTES">Antes</option><option value="DURANTE">Durante</option>
+            <option value="RESPUESTA_INMEDIATA">Respuesta inmediata</option><option value="ATENCION">Atención</option>
+            <option value="REFERENCIA">Referencia</option><option value="RECUPERACION">Recuperación</option>
+          </select>
+        </div>
+        <div><label class="small">HORA</label><input type="time" id="sis-hora"></div>
+        <div><label class="small">ACTOR</label><input id="sis-actor" placeholder="Ej. CRUE Chocó"></div>
+        <div><label class="small">CANAL</label><input id="sis-canal" placeholder="Ej. Radio, WhatsApp, telefonía"></div>
+        <div><label class="small">TIEMPO DE RESPUESTA</label><input id="sis-tiemporesp" placeholder="Ej. 25 min"></div>
+      </div>
+      <div class="qgrid two" style="margin-top:0.5rem;">
+        <div class="qfull"><label class="small">DESCRIPCIÓN DEL EVENTO/DECISIÓN</label><textarea id="sis-desc"></textarea></div>
+        <div><label class="small">INFORMACIÓN DISPONIBLE</label><textarea id="sis-infodisp"></textarea></div>
+        <div><label class="small">INFORMACIÓN FALTANTE</label><textarea id="sis-infofalta"></textarea></div>
+        <div><label class="small">RECURSO MOVILIZADO</label><input id="sis-recurso"></div>
+        <div><label class="small">AFECTACIÓN</label><input id="sis-afectacion"></div>
+        <div class="qfull"><label class="small">LECCIÓN APRENDIDA</label><textarea id="sis-leccion"></textarea></div>
+      </div>
+      <div class="btnrow"><button class="btn" id="btn-add-sismo">+ Agregar a la línea de tiempo</button></div>
+    </div>
+    <div class="panel">
+      <h4>LÍNEA DE TIEMPO</h4>
+      <div id="sismo-timeline"></div>
+    </div>
+  </section>
+
+  <!-- ================= MAPA TERRITORIAL (FASE 12) ================= -->
+  <section class="view" id="view-mapa">
+    <div class="page-head"><div><h2>Mapa territorial</h2><p>Registra coordenadas reales de instituciones, hospitales y recursos críticos. No se inventan ubicaciones — se cargan cuando estén disponibles.</p></div></div>
+    <div class="panel" style="margin-bottom:1rem;">
+      <h4>AGREGAR PUNTO</h4>
+      <div class="qgrid two">
+        <div><label class="small">NOMBRE</label><input id="pt-nombre" placeholder="Ej. Hospital San Francisco de Asís"></div>
+        <div><label class="small">TIPO</label>
+          <select id="pt-tipo">
+            <option value="CRUE">CRUE</option><option value="SEM">SEM / Ambulancia</option><option value="CRED">CRED</option>
+            <option value="HOSPITAL">Hospital</option><option value="IPS">IPS</option><option value="CENTRO_SALUD">Centro de salud</option>
+            <option value="OTRO">Otro recurso crítico</option>
+          </select>
+        </div>
+        <div><label class="small">MUNICIPIO</label><input id="pt-municipio"></div>
+        <div><label class="small">LATITUD</label><input id="pt-lat" type="number" step="any" placeholder="Ej. 5.6947"></div>
+        <div><label class="small">LONGITUD</label><input id="pt-lng" type="number" step="any" placeholder="Ej. -76.6583"></div>
+        <div><label class="small">NOTA (capacidad, estado, brechas)</label><input id="pt-nota"></div>
+      </div>
+      <div class="btnrow"><button class="btn" id="btn-add-punto">+ Agregar punto al mapa</button></div>
+      <p style="font-size:0.72rem;color:var(--ink-dim);margin-top:0.5rem;">⚠ El mapa necesita conexión a internet para cargar las calles base, aunque el resto de la app funcione sin señal. Si abres el archivo directamente desde tu computador (no desde GitHub Pages), algunos proveedores de mapas pueden bloquear las peticiones — súbelo a GitHub Pages para que funcione siempre.</p>
+    </div>
+    <div class="panel">
+      <div id="territorio-map" style="height:420px;border-radius:8px;overflow:hidden;"></div>
+      <div id="territorio-list" style="margin-top:1rem;"></div>
+    </div>
+  </section>
+
+  <!-- ================= COMPARATIVO TERRITORIAL ================= -->
+  <section class="view" id="view-comparativo">
+    <div class="page-head">
+      <div><h2>Comparativo territorial</h2><p>Trae los levantamientos de TODAS las instituciones/municipios sincronizados en Supabase y los compara — no solo el tuyo.</p></div>
+      <button class="btn" id="btn-cargar-comparativo">Actualizar comparativo</button>
+    </div>
+    <p style="font-size:0.78rem;color:var(--ink-dim);margin-bottom:1rem;" id="comp-status">Necesitas conexión a internet y sesión iniciada. Haz clic en "Actualizar comparativo" para traer los datos.</p>
+
+    <div class="grid-kpi" id="kpi-comparativo" style="margin-bottom:1.2rem;"></div>
+
+    <div class="panel" style="margin-bottom:1.2rem;">
+      <h4>TODOS LOS LEVANTAMIENTOS</h4>
+      <div style="overflow-x:auto;">
+        <table class="informe-doc" style="width:100%;" id="tabla-comparativo"></table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h4>COMPARAR DOS INSTITUCIONES POR DIMENSIÓN (MADUREZ)</h4>
+      <div class="qgrid two" style="margin-bottom:0.8rem;">
+        <div><label class="small">INSTITUCIÓN A</label><select id="comp-a"></select></div>
+        <div><label class="small">INSTITUCIÓN B (opcional)</label><select id="comp-b"><option value="">— ninguna —</option></select></div>
+      </div>
+      <div id="chart-comparativo-dim"></div>
+    </div>
+  </section>
+
+  <!-- ================= PRESTADORES (REPS) ================= -->
+  <section class="view" id="view-reps">
+    <div class="page-head"><div><h2>Prestadores de salud (REPS)</h2><p>Catálogo de instituciones prestadoras por municipio — alimenta el selector de "Institución" en Inicio.</p></div></div>
+
+    <div class="panel" style="margin-bottom:1rem;">
+      <h4>1 · IMPORTAR ARCHIVO REPS (CSV o Excel exportado como CSV)</h4>
+      <p style="font-size:0.8rem;color:var(--ink-dim);margin-bottom:0.8rem;">Descárgalo filtrado por Chocó desde datos.gov.co y súbelo aquí. No se envía a ningún servidor mientras lo revisas — se procesa en tu navegador.</p>
+      <input type="file" id="reps-file" accept=".csv,.txt">
+      <div id="reps-mapeo" style="display:none;margin-top:1rem;">
+        <p style="font-size:0.82rem;margin-bottom:0.6rem;" id="reps-mapeo-info"></p>
+        <div class="qgrid">
+          <div><label class="small">COLUMNA → NOMBRE</label><select id="map-nombre"></select></div>
+          <div><label class="small">COLUMNA → MUNICIPIO</label><select id="map-municipio"></select></div>
+          <div><label class="small">COLUMNA → TIPO/NATURALEZA</label><select id="map-tipo"></select></div>
+          <div><label class="small">COLUMNA → DIRECCIÓN</label><select id="map-direccion"></select></div>
+          <div><label class="small">COLUMNA → TELÉFONO (si existe)</label><select id="map-telefono"></select></div>
+        </div>
+        <div class="btnrow"><button class="btn" id="btn-confirmar-import">Confirmar e importar</button><button class="btn ghost" id="btn-cancelar-import">Cancelar</button></div>
+      </div>
+      <p style="font-size:0.75rem;color:var(--ink-dim);margin-top:0.6rem;" id="reps-import-status"></p>
+    </div>
+
+    <div class="panel" style="margin-bottom:1rem;">
+      <h4>2 · REGISTRAR EN CAMPO (cuando no hay archivo REPS disponible todavía)</h4>
+      <div class="qgrid two">
+        <div><label class="small">NOMBRE DEL PRESTADOR</label><input id="campo-nombre" placeholder="Ej. Puesto de Salud Vereda La Loma"></div>
+        <div><label class="small">MUNICIPIO</label><select id="campo-municipio"><option value="">— Selecciona —</option></select></div>
+        <div><label class="small">TIPO</label>
+          <select id="campo-tipo">
+            <option value="IPS">IPS</option><option value="HOSPITAL">Hospital</option>
+            <option value="CENTRO_SALUD">Centro de salud</option><option value="PUESTO_SALUD">Puesto de salud</option>
+            <option value="PROFESIONAL_INDEPENDIENTE">Profesional independiente</option><option value="OTRO">Otro</option>
+          </select>
+        </div>
+        <div><label class="small">DIRECCIÓN / VEREDA (si se conoce)</label><input id="campo-direccion"></div>
+        <div><label class="small">TELÉFONO DE CONTACTO (si se conoce)</label><input id="campo-telefono" placeholder="Ej. 300 000 0000"></div>
+        <div><label class="small">LATITUD (si se puede tomar en el sitio)</label><input id="campo-lat" type="number" step="any" placeholder="Ej. 5.1547"></div>
+        <div><label class="small">LONGITUD (si se puede tomar en el sitio)</label><input id="campo-lng" type="number" step="any" placeholder="Ej. -76.6789"></div>
+      </div>
+      <div class="btnrow"><button class="btn" id="btn-add-campo">+ Registrar prestador encontrado en campo</button></div>
+    </div>
+
+    <div class="panel">
+      <h4>3 · CATÁLOGO ACTUAL</h4>
+      <div class="qgrid two" style="margin-bottom:0.8rem;">
+        <div><label class="small">FILTRAR POR MUNICIPIO</label><select id="reps-filtro-municipio"><option value="">Todos</option></select></div>
+        <div style="display:flex;align-items:flex-end;"><span style="font-size:0.8rem;color:var(--ink-dim);" id="reps-conteo"></span></div>
+      </div>
+      <div id="reps-lista"></div>
+    </div>
+  </section>
+
+  <!-- ================= INFORME (FASE 13) ================= -->
+  <section class="view" id="view-informe">
+    <div class="page-head">
+      <div><h2>Generar diagnóstico</h2><p>Compila automáticamente todo lo registrado en un informe ejecutivo.</p></div>
+      <div class="btnrow" style="margin:0;"><button class="btn" id="btn-print-informe">Imprimir / Guardar como PDF</button><button class="btn ghost" id="btn-download-informe">Descargar como HTML</button></div>
+    </div>
+    <div class="panel" id="informe-contenido"></div>
+  </section>
+
+  <!-- ================= EXPORTAR ================= -->
+  <section class="view" id="view-exportar">
+    <div class="page-head">
+      <div><h2>Exportar y sincronización</h2><p>Descarga el levantamiento actual y conéctalo a la base de datos compartida (Supabase) para trabajar en varios equipos a la vez.</p></div>
+    </div>
+
+    <div class="panel" style="margin-bottom:1rem;">
+      <h4>SINCRONIZACIÓN CON LA NUBE (SUPABASE)</h4>
+      <p style="font-size:0.85rem;color:var(--ink-dim);margin-bottom:1rem;">
+        La app funciona 100% sin internet: cada respuesta se guarda primero en este equipo. Si configuras aquí tu proyecto de Supabase,
+        cuando haya señal el botón "Sincronizar ahora" (o la sincronización automática) sube lo pendiente y trae lo que otros equipos ya registraron
+        para el mismo levantamiento. Si dejas esto vacío, la app sigue funcionando igual, solo que sin compartir datos entre equipos.
+      </p>
+      <p style="font-size:0.8rem;color:var(--amarillo);margin-bottom:1rem;">
+        ⚠ Importante: los equipos comparten datos cuando escriben <strong>exactamente el mismo texto</strong> en Institución, Municipio y Dependencia
+        (pestaña Inicio). Acuerden por escrito, antes de salir a campo, cómo se llama cada institución/municipio para que no queden aislados por un typo.
+      </p>
+      <div class="qgrid two">
+        <div><label class="small">SUPABASE URL</label><input id="cfg-url" placeholder="https://xxxx.supabase.co"></div>
+        <div><label class="small">SUPABASE ANON KEY</label><input id="cfg-key" placeholder="eyJhbGciOi..."></div>
+      </div>
+      <div class="btnrow">
+        <button class="btn" id="btn-save-cfg">Guardar configuración</button>
+        <button class="btn ghost" id="btn-sync-now-2">Sincronizar ahora</button>
+      </div>
+      <p style="font-size:0.75rem;color:var(--ink-dim);margin-top:0.8rem;">
+        ⚠ Aviso de seguridad: esta clave (anon key) queda visible en el archivo/navegador de cada equipo. Es apta para una prueba controlada
+        con un grupo interno de confianza, no para publicar la app abiertamente en internet. La Fase 3 (roles y autenticación real) reemplaza esto.
+      </p>
+      <p style="font-size:0.72rem;color:var(--ink-dim);margin-top:0.4rem;font-family:var(--mono);" id="sync-detail"></p>
+    </div>
+
+    <div class="panel" style="margin-bottom:1rem;">
+      <h4>SESIÓN Y ROL (FASE 3)</h4>
+      <p style="font-size:0.85rem;color:var(--ink-dim);margin-bottom:1rem;">
+        Inicia sesión para que tus cambios queden identificados con tu correo y tu rol determine qué puedes hacer.
+        Sin sesión, la app sigue funcionando localmente, pero no podrás sincronizar (la base de datos ahora exige usuario autenticado, ya no la anon key sola).
+      </p>
+      <div id="auth-logged-out">
+        <div class="qgrid two">
+          <div><label class="small">CORREO</label><input id="auth-email" type="email" placeholder="nombre@institucion.gov.co"></div>
+          <div><label class="small">CONTRASEÑA</label><input id="auth-pass" type="password" placeholder="mínimo 6 caracteres"></div>
+        </div>
+        <div class="qgrid two" style="margin-top:0.6rem;">
+          <div><label class="small">ROL (solo al crear cuenta nueva)</label>
+            <select id="auth-rol">
+              <option value="EVALUADOR">Evaluador</option>
+              <option value="RESPONSABLE_INSTITUCIONAL">Responsable institucional</option>
+              <option value="COORDINADOR">Coordinador</option>
+              <option value="CONSULTA_EJECUTIVA">Consulta ejecutiva (solo lectura)</option>
+            </select>
+          </div>
+          <div><label class="small">INSTITUCIÓN (opcional)</label><input id="auth-institucion" placeholder="Ej. CRUE Chocó"></div>
+        </div>
+        <div class="btnrow">
+          <button class="btn" id="btn-login">Iniciar sesión</button>
+          <button class="btn ghost" id="btn-signup">Crear cuenta</button>
+        </div>
+      </div>
+      <div id="auth-logged-in" style="display:none;">
+        <p style="font-size:0.9rem;">Sesión activa: <strong id="auth-email-display"></strong> — rol <strong id="auth-rol-display"></strong></p>
+        <div class="btnrow"><button class="btn ghost" id="btn-logout">Cerrar sesión</button></div>
+      </div>
+      <p style="font-size:0.75rem;color:var(--naranja);margin-top:0.8rem;" id="auth-msg"></p>
+    </div>
+
+    <div class="panel">
+      <h4>DATOS DISPONIBLES EN ESTE PROTOTIPO</h4>
+      <p style="font-size:0.85rem;color:var(--ink-dim);margin-bottom:1rem;">Exporta el contexto, las 180 respuestas y los cálculos de criticidad/prioridad tal como están guardados en este navegador.</p>
+      <div class="btnrow">
+        <button class="btn" id="btn-export-json">Descargar JSON</button>
+        <button class="btn ghost" id="btn-export-csv">Descargar CSV</button>
+        <button class="btn ghost" id="btn-reset">Reiniciar levantamiento local</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="savedtick" id="savedtick">Guardado localmente ✓</div>
+
+<script>
+/* ============================================================
+   DATOS EMBEBIDOS — extraídos de Matriz_Maestra_Levantamiento_CRUE_SEM_CRED_Choco_2026.docx
+   180 preguntas, 12 dimensiones. No se modificó ni el texto ni el orden.
+   ============================================================ */
+const DIMENSIONES = [{"n": 1, "nombre": "Gobernanza y Dirección Territorial", "nombreCompleto": "DIMENSIÓN 1. GOBERNANZA Y DIRECCIÓN TERRITORIAL"}, {"n": 2, "nombre": "Organización y Talento Humano", "nombreCompleto": "DIMENSIÓN 2. ORGANIZACIÓN, TALENTO HUMANO Y OPERACIÓN"}, {"n": 3, "nombre": "Operación del CRUE", "nombreCompleto": "DIMENSIÓN 3. OPERACIÓN DEL CRUE Y REGULACIÓN"}, {"n": 4, "nombre": "SEM y Atención Prehospitalaria", "nombreCompleto": "DIMENSIÓN 4. SEM Y ATENCIÓN PREHOSPITALARIA"}, {"n": 5, "nombre": "CRED, Emergencias y Desastres", "nombreCompleto": "DIMENSIÓN 5. CRED, EMERGENCIAS Y DESASTRES"}, {"n": 6, "nombre": "Red Hospitalaria", "nombreCompleto": "DIMENSIÓN 6. RED HOSPITALARIA Y CAPACIDAD RESOLUTIVA"}, {"n": 7, "nombre": "Referencia y Contrarreferencia", "nombreCompleto": "DIMENSIÓN 7. REFERENCIA, CONTRARREFERENCIA Y CONTINUIDAD"}, {"n": 8, "nombre": "Transporte y Georreferenciación", "nombreCompleto": "DIMENSIÓN 8. TRANSPORTE SANITARIO Y GEOREFERENCIACIÓN"}, {"n": 9, "nombre": "Tecnología y Equipamiento", "nombreCompleto": "DIMENSIÓN 9. TECNOLOGÍA, SISTEMAS Y EQUIPAMIENTO"}, {"n": 10, "nombre": "Conectividad y Energía", "nombreCompleto": "DIMENSIÓN 10. CONECTIVIDAD, COMUNICACIONES Y ENERGÍA"}, {"n": 11, "nombre": "Datos, Interoperabilidad y Seguridad", "nombreCompleto": "DIMENSIÓN 11. DATOS, INTEROPERABILIDAD, SEGURIDAD Y PRIVACIDAD"}, {"n": 12, "nombre": "Resiliencia y Experiencia del Paciente", "nombreCompleto": "DIMENSIÓN 12. RESILIENCIA, CONTINUIDAD Y EXPERIENCIA DEL PACIENTE"}];
+const PREGUNTAS = [{"id": 1, "d": 1, "t": "¿Cuál es el acto administrativo que define la organización y responsabilidades del CRUE?"}, {"id": 2, "d": 1, "t": "¿Quién ejerce formalmente la dirección o coordinación?"}, {"id": 3, "d": 1, "t": "¿Qué dependencia territorial tiene competencia directa?"}, {"id": 4, "d": 1, "t": "¿Cómo se articula con la Secretaría de Salud?"}, {"id": 5, "d": 1, "t": "¿Cómo se articula con gestión del riesgo?"}, {"id": 6, "d": 1, "t": "¿Cómo se articula con SEM?"}, {"id": 7, "d": 1, "t": "¿Cómo se articula con CRED?"}, {"id": 8, "d": 1, "t": "¿Qué instituciones participan formalmente?"}, {"id": 9, "d": 1, "t": "¿Existen comités o mesas permanentes?"}, {"id": 10, "d": 1, "t": "¿Con qué periodicidad se reúnen?"}, {"id": 11, "d": 1, "t": "¿Existen protocolos de escalamiento para eventos mayores?"}, {"id": 12, "d": 1, "t": "¿Quién decide cuando se supera la capacidad ordinaria?"}, {"id": 13, "d": 1, "t": "¿Existen indicadores de desempeño del CRUE?"}, {"id": 14, "d": 1, "t": "¿Quién recibe y analiza los indicadores?"}, {"id": 15, "d": 1, "t": "¿Cómo se documentan las decisiones durante una emergencia?"}, {"id": 16, "d": 2, "t": "¿Cuál es el equipo real asignado al CRUE?"}, {"id": 17, "d": 2, "t": "¿Cuántas personas trabajan por turno?"}, {"id": 18, "d": 2, "t": "¿Qué perfiles profesionales están disponibles?"}, {"id": 19, "d": 2, "t": "¿Qué perfiles son exclusivos y cuáles compartidos?"}, {"id": 20, "d": 2, "t": "¿Cuál es el esquema de turnos 24/7?"}, {"id": 21, "d": 2, "t": "¿Cómo se cubren ausencias o contingencias?"}, {"id": 22, "d": 2, "t": "¿Existe capacitación en regulación de urgencias?"}, {"id": 23, "d": 2, "t": "¿Existe capacitación en incidentes con múltiples víctimas?"}, {"id": 24, "d": 2, "t": "¿Existe entrenamiento en comunicaciones de emergencia?"}, {"id": 25, "d": 2, "t": "¿Existe entrenamiento en sistemas de información?"}, {"id": 26, "d": 2, "t": "¿Existe capacitación en protección de datos y seguridad digital?"}, {"id": 27, "d": 2, "t": "¿Cómo se evalúa la competencia del personal?"}, {"id": 28, "d": 2, "t": "¿Existe manual operativo actualizado?"}, {"id": 29, "d": 2, "t": "¿Existe inducción para personal nuevo?"}, {"id": 30, "d": 2, "t": "¿Cómo se registran novedades de turno?"}, {"id": 31, "d": 3, "t": "¿Cuál es el canal principal de recepción?"}, {"id": 32, "d": 3, "t": "¿Qué canales alternos existen?"}, {"id": 33, "d": 3, "t": "¿Cómo se identifica al solicitante?"}, {"id": 34, "d": 3, "t": "¿Cómo se registra el evento?"}, {"id": 35, "d": 3, "t": "¿Cómo se clasifica la urgencia?"}, {"id": 36, "d": 3, "t": "¿Qué criterios clínicos se usan para priorizar?"}, {"id": 37, "d": 3, "t": "¿Qué información mínima obtiene el regulador?"}, {"id": 38, "d": 3, "t": "¿Cómo se decide el recurso requerido?"}, {"id": 39, "d": 3, "t": "¿Cómo se identifica la disponibilidad de ambulancias?"}, {"id": 40, "d": 3, "t": "¿Cómo se conoce la capacidad hospitalaria?"}, {"id": 41, "d": 3, "t": "¿Cómo se selecciona el destino?"}, {"id": 42, "d": 3, "t": "¿Cómo se registra la aceptación?"}, {"id": 43, "d": 3, "t": "¿Cómo se hace seguimiento al traslado?"}, {"id": 44, "d": 3, "t": "¿Cómo se cierra una regulación?"}, {"id": 45, "d": 3, "t": "¿Qué tiempos se miden desde llamada hasta recepción?"}, {"id": 46, "d": 4, "t": "¿Existe SEM formalmente organizado?"}, {"id": 47, "d": 4, "t": "¿Qué cobertura territorial tiene?"}, {"id": 48, "d": 4, "t": "¿Cómo se activa la atención prehospitalaria?"}, {"id": 49, "d": 4, "t": "¿Quién recibe y clasifica las solicitudes?"}, {"id": 50, "d": 4, "t": "¿Cómo se asigna una ambulancia?"}, {"id": 51, "d": 4, "t": "¿Qué tipos de ambulancia están disponibles?"}, {"id": 52, "d": 4, "t": "¿Cuántas están operativas en cada momento?"}, {"id": 53, "d": 4, "t": "¿Cómo se conoce su ubicación?"}, {"id": 54, "d": 4, "t": "¿Cómo se conoce su estado operativo?"}, {"id": 55, "d": 4, "t": "¿Cómo se comunica la tripulación con el CRUE?"}, {"id": 56, "d": 4, "t": "¿Qué protocolos existen para múltiples víctimas?"}, {"id": 57, "d": 4, "t": "¿Qué protocolos existen para accidentes de tránsito?"}, {"id": 58, "d": 4, "t": "¿Qué protocolos existen para eventos naturales?"}, {"id": 59, "d": 4, "t": "¿Cómo se documenta la atención prehospitalaria?"}, {"id": 60, "d": 4, "t": "¿Cómo se entrega información clínica al hospital receptor?"}, {"id": 61, "d": 5, "t": "¿Existe CRED operativo y formalmente identificado?"}, {"id": 62, "d": 5, "t": "¿Dónde está ubicado?"}, {"id": 63, "d": 5, "t": "¿Quién lo coordina?"}, {"id": 64, "d": 5, "t": "¿Qué recursos tiene disponibles?"}, {"id": 65, "d": 5, "t": "¿Qué inventario de insumos mantiene?"}, {"id": 66, "d": 5, "t": "¿Cómo se controla el inventario?"}, {"id": 67, "d": 5, "t": "¿Cuál es la capacidad de reserva?"}, {"id": 68, "d": 5, "t": "¿Cuál es el tiempo de reposición?"}, {"id": 69, "d": 5, "t": "¿Existen protocolos de activación?"}, {"id": 70, "d": 5, "t": "¿Quién autoriza la activación?"}, {"id": 71, "d": 5, "t": "¿Cómo se comunica con CRUE y SEM?"}, {"id": 72, "d": 5, "t": "¿Cómo se articula con gestión del riesgo?"}, {"id": 73, "d": 5, "t": "¿Se realizan simulacros?"}, {"id": 74, "d": 5, "t": "¿Con qué periodicidad?"}, {"id": 75, "d": 5, "t": "¿Se documentan lecciones aprendidas?"}, {"id": 76, "d": 6, "t": "¿Cuál es el inventario actualizado de hospitales e IPS relevantes para urgencias?"}, {"id": 77, "d": 6, "t": "¿Qué nivel de atención tiene cada institución?"}, {"id": 78, "d": 6, "t": "¿Qué urgencias están habilitadas?"}, {"id": 79, "d": 6, "t": "¿Qué especialidades están disponibles?"}, {"id": 80, "d": 6, "t": "¿Qué capacidad de camas existe?"}, {"id": 81, "d": 6, "t": "¿Cómo se conoce la ocupación?"}, {"id": 82, "d": 6, "t": "¿Cómo se conoce disponibilidad de UCI?"}, {"id": 83, "d": 6, "t": "¿Cómo se conoce disponibilidad de quirófano?"}, {"id": 84, "d": 6, "t": "¿Cómo se conoce disponibilidad de imágenes?"}, {"id": 85, "d": 6, "t": "¿Cómo se conoce disponibilidad de laboratorio?"}, {"id": 86, "d": 6, "t": "¿Cómo se conoce disponibilidad de especialistas?"}, {"id": 87, "d": 6, "t": "¿Cómo se actualiza la capacidad?"}, {"id": 88, "d": 6, "t": "¿Quién actualiza la información?"}, {"id": 89, "d": 6, "t": "¿El CRUE puede consultarla directamente?"}, {"id": 90, "d": 6, "t": "¿Qué información debe solicitarse por teléfono?"}, {"id": 91, "d": 7, "t": "¿Cuál es el flujo actual de referencia?"}, {"id": 92, "d": 7, "t": "¿Está documentado y actualizado?"}, {"id": 93, "d": 7, "t": "¿Qué información clínica acompaña al paciente?"}, {"id": 94, "d": 7, "t": "¿Qué información administrativa acompaña?"}, {"id": 95, "d": 7, "t": "¿Qué sistema registra la referencia?"}, {"id": 96, "d": 7, "t": "¿Cómo se confirma la aceptación?"}, {"id": 97, "d": 7, "t": "¿Cómo se informa al transporte?"}, {"id": 98, "d": 7, "t": "¿Cómo se informa al paciente o familia?"}, {"id": 99, "d": 7, "t": "¿Cómo se registra hora de salida?"}, {"id": 100, "d": 7, "t": "¿Cómo se registra hora de llegada?"}, {"id": 101, "d": 7, "t": "¿Cómo se registra la recepción clínica?"}, {"id": 102, "d": 7, "t": "¿Cómo se gestiona la contrarreferencia?"}, {"id": 103, "d": 7, "t": "¿Cómo se devuelve información al prestador de origen?"}, {"id": 104, "d": 7, "t": "¿Qué eventos generan pérdida o duplicación?"}, {"id": 105, "d": 7, "t": "¿Qué pasos dependen de llamadas telefónicas?"}, {"id": 106, "d": 8, "t": "¿Existe inventario único de ambulancias?"}, {"id": 107, "d": 8, "t": "¿Identifica institución, tipo y placa?"}, {"id": 108, "d": 8, "t": "¿Se conoce estado operativo?"}, {"id": 109, "d": 8, "t": "¿Se conoce ubicación?"}, {"id": 110, "d": 8, "t": "¿Existe GPS?"}, {"id": 111, "d": 8, "t": "¿El CRUE puede visualizarlo?"}, {"id": 112, "d": 8, "t": "¿La ubicación se actualiza en tiempo real?"}, {"id": 113, "d": 8, "t": "¿Qué ocurre si falla el GPS?"}, {"id": 114, "d": 8, "t": "¿Cómo se comunican las ambulancias?"}, {"id": 115, "d": 8, "t": "¿Qué medios alternos existen?"}, {"id": 116, "d": 8, "t": "¿Se registran tiempos de despacho?"}, {"id": 117, "d": 8, "t": "¿Se registra llegada a escena?"}, {"id": 118, "d": 8, "t": "¿Se registra llegada al destino?"}, {"id": 119, "d": 8, "t": "¿Existe mantenimiento preventivo documentado?"}, {"id": 120, "d": 8, "t": "¿Existe mantenimiento correctivo documentado?"}, {"id": 121, "d": 9, "t": "¿Existe inventario actualizado de hardware del CRUE?"}, {"id": 122, "d": 9, "t": "¿Qué computadores están disponibles?"}, {"id": 123, "d": 9, "t": "¿Qué servidores existen?"}, {"id": 124, "d": 9, "t": "¿Qué almacenamiento existe?"}, {"id": 125, "d": 9, "t": "¿Qué equipos de comunicaciones existen?"}, {"id": 126, "d": 9, "t": "¿Qué radios existen?"}, {"id": 127, "d": 9, "t": "¿Qué telefonía existe?"}, {"id": 128, "d": 9, "t": "¿Qué videoconferencia existe?"}, {"id": 129, "d": 9, "t": "¿Qué equipos de telemedicina existen?"}, {"id": 130, "d": 9, "t": "¿Qué software utiliza el CRUE?"}, {"id": 131, "d": 9, "t": "¿Qué software utilizan hospitales e IPS?"}, {"id": 132, "d": 9, "t": "¿Qué sistemas de ambulancias existen?"}, {"id": 133, "d": 9, "t": "¿Qué sistemas de referencia existen?"}, {"id": 134, "d": 9, "t": "¿Qué sistemas de historia clínica existen?"}, {"id": 135, "d": 9, "t": "¿Qué sistemas administrativos existen?"}, {"id": 136, "d": 10, "t": "¿Cuál es el enlace principal de internet?"}, {"id": 137, "d": 10, "t": "¿Cuál es el ancho de banda contratado?"}, {"id": 138, "d": 10, "t": "¿Cuál es la disponibilidad histórica?"}, {"id": 139, "d": 10, "t": "¿Existe segundo enlace?"}, {"id": 140, "d": 10, "t": "¿Existe fibra?"}, {"id": 141, "d": 10, "t": "¿Existen enlaces inalámbricos?"}, {"id": 142, "d": 10, "t": "¿Existe conectividad satelital donde sea necesaria?"}, {"id": 143, "d": 10, "t": "¿Qué municipios tienen mayor dificultad?"}, {"id": 144, "d": 10, "t": "¿Qué instituciones tienen conectividad crítica?"}, {"id": 145, "d": 10, "t": "¿Existe VPN o red privada?"}, {"id": 146, "d": 10, "t": "¿Existe segmentación de red?"}, {"id": 147, "d": 10, "t": "¿Existe monitoreo de red?"}, {"id": 148, "d": 10, "t": "¿Existe respaldo de energía?"}, {"id": 149, "d": 10, "t": "¿Existe UPS?"}, {"id": 150, "d": 10, "t": "¿Existe planta eléctrica?"}, {"id": 151, "d": 11, "t": "¿Qué bases de datos utiliza el CRUE?"}, {"id": 152, "d": 11, "t": "¿Quién es responsable de cada base?"}, {"id": 153, "d": 11, "t": "¿Existe diccionario de datos?"}, {"id": 154, "d": 11, "t": "¿Existen identificadores comunes de paciente?"}, {"id": 155, "d": 11, "t": "¿Los datos están estructurados?"}, {"id": 156, "d": 11, "t": "¿Qué información se duplica?"}, {"id": 157, "d": 11, "t": "¿Qué información se captura manualmente?"}, {"id": 158, "d": 11, "t": "¿Qué sistemas intercambian información automáticamente?"}, {"id": 159, "d": 11, "t": "¿Existen APIs o servicios de integración?"}, {"id": 160, "d": 11, "t": "¿Qué estándares utilizan?"}, {"id": 161, "d": 11, "t": "¿Cómo se integra o podrá integrarse el RDA de la IHCE?"}, {"id": 162, "d": 11, "t": "¿Cómo se autentican los usuarios?"}, {"id": 163, "d": 11, "t": "¿Existe control de acceso por roles?"}, {"id": 164, "d": 11, "t": "¿Existe registro de auditoría?"}, {"id": 165, "d": 11, "t": "¿Existe cifrado?"}, {"id": 166, "d": 12, "t": "¿Existe plan formal de continuidad?"}, {"id": 167, "d": 12, "t": "¿Existe sede alterna o capacidad alternativa?"}, {"id": 168, "d": 12, "t": "¿Cuánto tiempo opera en modo degradado?"}, {"id": 169, "d": 12, "t": "¿Qué procesos continúan manualmente?"}, {"id": 170, "d": 12, "t": "¿Cómo se recuperan los datos?"}, {"id": 171, "d": 12, "t": "¿Se realizan copias de seguridad?"}, {"id": 172, "d": 12, "t": "¿Se prueban las copias?"}, {"id": 173, "d": 12, "t": "¿Qué ocurre ante pérdida total de internet?"}, {"id": 174, "d": 12, "t": "¿Qué ocurre ante pérdida de energía?"}, {"id": 175, "d": 12, "t": "¿Qué ocurre ante pérdida de telefonía?"}, {"id": 176, "d": 12, "t": "¿Qué ocurre ante ciberincidente?"}, {"id": 177, "d": 12, "t": "¿Qué ocurre ante un sismo mayor?"}, {"id": 178, "d": 12, "t": "¿Qué ocurre ante inundación o aislamiento?"}, {"id": 179, "d": 12, "t": "¿Existe protocolo para múltiples víctimas?"}, {"id": 180, "d": 12, "t": "¿Se realizan simulacros integrales?"}];
+
+const ESTADOS = [
+  {c:'V',  n:'Verificado',          color:'#22c55e'},
+  {c:'D',  n:'Documental',          color:'#38bdf8'},
+  {c:'PV', n:'Por verificar',       color:'#eab308'},
+  {c:'HB', n:'Hipótesis de brecha', color:'#f97316'},
+  {c:'NA', n:'No aplica',           color:'#5b7573'},
+];
+const MADUREZ = [
+  {v:0,n:'0 · Inexistente'}, {v:1,n:'1 · Inicial'}, {v:2,n:'2 · Parcial'},
+  {v:3,n:'3 · Definido'}, {v:4,n:'4 · Integrado'}, {v:5,n:'5 · Optimizado'},
+];
+
+// Escalas de Impacto y Probabilidad — el instrumento original solo decía "1-5" sin
+// definir cada nivel. Esta rúbrica se agrega para que todos los evaluadores califiquen
+// con el mismo criterio (no viene del documento base, es una definición operativa).
+const IMPACTO_ESCALA = [
+  {v:1, n:'1 · Insignificante', d:'Sin efecto perceptible en la atención o el servicio.'},
+  {v:2, n:'2 · Menor',          d:'Afecta la eficiencia operativa pero no compromete la atención al paciente.'},
+  {v:3, n:'3 · Moderado',       d:'Genera demoras o afecta parcialmente la calidad de la atención.'},
+  {v:4, n:'4 · Mayor',          d:'Compromete la atención oportuna o la seguridad del paciente en casos puntuales.'},
+  {v:5, n:'5 · Catastrófico',   d:'Pone en riesgo la vida de pacientes o la continuidad del servicio a nivel territorial.'},
+];
+const PROBABILIDAD_ESCALA = [
+  {v:1, n:'1 · Rara vez',    d:'Nunca se ha presentado; las condiciones actuales lo hacen muy improbable.'},
+  {v:2, n:'2 · Improbable',  d:'Se ha presentado de forma aislada; existen controles que lo mitigan.'},
+  {v:3, n:'3 · Posible',     d:'Se ha presentado alguna vez y podría volver a ocurrir.'},
+  {v:4, n:'4 · Probable',    d:'Se presenta con cierta frecuencia; hay antecedentes recurrentes.'},
+  {v:5, n:'5 · Casi seguro', d:'Ocurre de forma constante o es prácticamente inevitable sin intervención.'},
+];
+
+const STORE_KEY = 'crue_sem_cred_choco_2026_v1';
+const CFG_KEY = 'crue_sem_cred_choco_2026_cfg';
+
+function uuid(){
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{
+    const r = Math.random()*16|0, v = c==='x'?r:(r&0x3|0x8);
+    return v.toString(16);
+  });
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return {
+    contexto:{institucion:'',municipio:'',dependencia:'',responsable:''},
+    respuestas:{},
+    evidencias:{},
+    indicadorValores:{},
+    brechas:{},
+    acciones:{},
+    ambulancias:{},
+    sismo:{},
+    puntos:{},
+    prestadores:{},
+    deviceId: uuid(),
+  };
+}
+var STATE = loadState();
+if(!STATE.deviceId) STATE.deviceId = uuid();
+if(!STATE.evidencias) STATE.evidencias = {};
+if(!STATE.indicadorValores) STATE.indicadorValores = {};
+if(!STATE.brechas) STATE.brechas = {};
+if(!STATE.acciones) STATE.acciones = {};
+if(!STATE.ambulancias) STATE.ambulancias = {};
+if(!STATE.sismo) STATE.sismo = {};
+if(!STATE.puntos) STATE.puntos = {};
+if(!STATE.prestadores) STATE.prestadores = {};
+delete STATE.levantamientoId; // versión anterior guardaba un id aleatorio por equipo; ya no se usa
+
+// El ID del levantamiento se calcula del CONTEXTO (institución+municipio+dependencia),
+// no es aleatorio por equipo. Así, dos equipos que escriben el MISMO contexto
+// (idéntico texto) comparten automáticamente el mismo levantamiento al sincronizar.
+// Si el contexto está vacío, cae en 'sin-contexto' (no sincroniza con nadie más
+// hasta que se llene). Se recomienda acordar de antemano el texto exacto por equipo.
+function slugify(s){
+  return String(s||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'x';
+}
+function levantamientoId(){
+  const c = STATE.contexto;
+  if(!c.institucion && !c.municipio) return null;
+  return [slugify(c.institucion), slugify(c.municipio), slugify(c.dependencia)].join('__');
+}
+
+function loadCfg(){
+  try{
+    const raw = localStorage.getItem(CFG_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return { url:'', key:'' };
+}
+var CFG = loadCfg();
+
+function saveState(){
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify(STATE));
+    const t = document.getElementById('savedtick');
+    t.classList.add('show');
+    clearTimeout(window.__savedtimer);
+    window.__savedtimer = setTimeout(()=>t.classList.remove('show'), 1200);
+    updateSyncStatus();
+  }catch(e){ console.error('No se pudo guardar localmente', e); }
+}
+
+function clasificarCriticidad(c){
+  if(c==null) return null;
+  if(c>=17) return {label:'CRÍTICA', color:'var(--rojo)', p:'P1'};
+  if(c>=10) return {label:'ALTA',    color:'var(--naranja)', p:'P2'};
+  if(c>=5)  return {label:'MEDIA',   color:'var(--amarillo)', p:'P3'};
+  return             {label:'BAJA',    color:'var(--verde)', p:'P4'};
+}
+
+function getResp(id){
+  return STATE.respuestas[id] || {};
+}
+function setResp(id, patch){
+  const cur = STATE.respuestas[id] || {};
+  const next = Object.assign({}, cur, patch);
+  if(next.impacto && next.probabilidad){
+    next.criticidad = Number(next.impacto) * Number(next.probabilidad);
+  } else {
+    next.criticidad = null;
+  }
+  next.updatedAt = Date.now();
+  next.syncStatus = 'pending';
+  STATE.respuestas[id] = next;
+  saveState();
+  scheduleAutoSync();
+}
+
+/* ---------------- FASE 5: EVIDENCIAS ---------------- */
+function evidenciasFor(preguntaId){
+  return Object.entries(STATE.evidencias||{})
+    .filter(([,e])=> e.preguntaId === preguntaId)
+    .map(([id,e])=> Object.assign({id}, e));
+}
+function addEvidencia(preguntaId, data){
+  const id = uuid();
+  STATE.evidencias[id] = Object.assign({
+    preguntaId, estadoValidacion:'PENDIENTE_DE_REVISION',
+    updatedAt: Date.now(), syncStatus:'pending',
+  }, data);
+  saveState();
+  scheduleAutoSync();
+  return id;
+}
+function removeEvidenciaLocal(id){
+  delete STATE.evidencias[id];
+  saveState();
+}
+
+/* ============================================================
+   SINCRONIZACIÓN CON SUPABASE (REST/PostgREST, sin librerías externas)
+   Offline-first: todo se guarda localmente primero (arriba). Esto solo
+   intenta empujar/traer cambios cuando hay URL+key configuradas y hay señal.
+   ============================================================ */
+function syncEnabled(){ return !!(CFG.url && CFG.key); }
+
+function updateSyncStatus(detail){
+  const el = document.getElementById('syncstatus');
+  if(!el) return;
+  const pendientes = Object.values(STATE.respuestas).filter(r=>r.syncStatus==='pending').length;
+  if(!syncEnabled()){
+    el.className = 'syncstatus'; el.innerHTML = '<span class="dot"></span>Sincronización desactivada';
+  } else if(!navigator.onLine){
+    el.className = 'syncstatus off'; el.innerHTML = `<span class="dot"></span>Sin señal · ${pendientes} sin subir`;
+  } else if(pendientes > 0){
+    el.className = 'syncstatus pending'; el.innerHTML = `<span class="dot"></span>${pendientes} pendientes de subir`;
+  } else {
+    el.className = 'syncstatus ok'; el.innerHTML = '<span class="dot"></span>Sincronizado';
+  }
+  const d = document.getElementById('sync-detail');
+  if(d && detail) d.textContent = detail;
+}
+
+let __syncTimer = null;
+function scheduleAutoSync(){
+  clearTimeout(__syncTimer);
+  __syncTimer = setTimeout(()=>{ if(syncEnabled() && navigator.onLine) syncNow(); }, 4000);
+}
+window.addEventListener('online', ()=>{ updateSyncStatus(); if(syncEnabled()) syncNow(); });
+window.addEventListener('offline', updateSyncStatus);
+
+async function syncNow(){
+  if(!syncEnabled()){ updateSyncStatus('Configura URL y anon key para activar la sincronización.'); return; }
+  if(!navigator.onLine){ updateSyncStatus('Sin conexión — se reintentará cuando vuelva la señal.'); return; }
+  const levId = levantamientoId();
+  if(!levId){ updateSyncStatus('Completa institución y municipio en Inicio antes de sincronizar.'); return; }
+  await refreshSessionIfNeeded();
+  if(!SESSION){ updateSyncStatus('Inicia sesión (pestaña Exportar) para sincronizar — la base de datos ya exige usuario autenticado.'); return; }
+
+  const headers = {
+    'apikey': CFG.key,
+    'Authorization': 'Bearer ' + SESSION.access_token,
+    'Content-Type': 'application/json',
+  };
+
+  try{
+    // 1) Subir el contexto del levantamiento (upsert)
+    await fetch(CFG.url + '/rest/v1/levantamientos?on_conflict=id', {
+      method:'POST',
+      headers: Object.assign({}, headers, {'Prefer':'resolution=merge-duplicates'}),
+      body: JSON.stringify([{
+        id: levId,
+        device_id: STATE.deviceId,
+        institucion: STATE.contexto.institucion,
+        municipio: STATE.contexto.municipio,
+        dependencia: STATE.contexto.dependencia,
+        responsable: STATE.contexto.responsable,
+        actualizado_en: new Date().toISOString(),
+      }]),
+    });
+
+    // 2) Subir respuestas pendientes (upsert por levantamiento_id + pregunta_id)
+    const pendientes = Object.entries(STATE.respuestas).filter(([,r])=>r.syncStatus==='pending');
+    if(pendientes.length){
+      const payload = pendientes.map(([id, r])=>({
+        levantamiento_id: levId,
+        pregunta_id: Number(id),
+        estado: r.estado || null,
+        madurez: r.madurez ?? null,
+        impacto: r.impacto ?? null,
+        probabilidad: r.probabilidad ?? null,
+        criticidad: r.criticidad ?? null,
+        linea_base: r.lineaBase || null,
+        respuesta_rapida: r.respuestaRapida || null,
+        fuente: r.fuente || null,
+        metodo_verificacion: r.metodoVerificacion || null,
+        brecha_hallazgo: r.brechaHallazgo || null,
+        accion_recomendacion: r.accionRecomendacion || null,
+        observacion: r.observacion || null,
+        device_id: STATE.deviceId,
+        actualizado_en: new Date(r.updatedAt || Date.now()).toISOString(),
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/respuestas?on_conflict=levantamiento_id,pregunta_id', {
+        method:'POST',
+        headers: Object.assign({}, headers, {'Prefer':'resolution=merge-duplicates'}),
+        body: JSON.stringify(payload),
+      });
+      if(!res.ok){ throw new Error('Error subiendo respuestas: '+res.status); }
+      pendientes.forEach(([id])=>{ STATE.respuestas[id].syncStatus = 'synced'; });
+    }
+
+    // 2b) Subir evidencias pendientes (solo inserta las nuevas; no upsert)
+    const evPendientes = Object.entries(STATE.evidencias||{}).filter(([,e])=>e.syncStatus==='pending');
+    if(evPendientes.length){
+      const payload = evPendientes.map(([localId, e])=>({
+        levantamiento_id: levId,
+        pregunta_id: e.preguntaId,
+        tipo: e.tipo,
+        nombre: e.nombre,
+        descripcion: e.descripcion || null,
+        url_archivo: e.urlArchivo || null,
+        estado_validacion: e.estadoValidacion || 'PENDIENTE_DE_REVISION',
+        creado_por_email: SESSION.email,
+        device_id: STATE.deviceId,
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/evidencias', {
+        method:'POST',
+        headers: Object.assign({}, headers, {'Prefer':'return=representation'}),
+        body: JSON.stringify(payload),
+      });
+      if(!res.ok){ throw new Error('Error subiendo evidencias: '+res.status); }
+      const created = await res.json();
+      evPendientes.forEach(([localId], i)=>{
+        const remoteId = created[i] && created[i].id;
+        if(remoteId){
+          STATE.evidencias[remoteId] = Object.assign({}, STATE.evidencias[localId], {syncStatus:'synced'});
+          delete STATE.evidencias[localId];
+        } else {
+          STATE.evidencias[localId].syncStatus = 'synced';
+        }
+      });
+    }
+
+    // 2c) Subir indicadores pendientes (solo inserta, son mediciones históricas)
+    const indPendientes = Object.entries(STATE.indicadorValores||{}).filter(([,v])=>v.syncStatus==='pending');
+    if(indPendientes.length){
+      const payload = indPendientes.map(([,v])=>({
+        levantamiento_id: levId, indicador: v.indicador, valor: v.valor, fecha_medicion: v.fecha, device_id: STATE.deviceId,
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/indicador_valores', {
+        method:'POST', headers: Object.assign({}, headers, {'Prefer':'return=minimal'}), body: JSON.stringify(payload),
+      });
+      if(res.ok) indPendientes.forEach(([id])=>{ STATE.indicadorValores[id].syncStatus = 'synced'; });
+    }
+
+    // 2d) Subir/actualizar brechas pendientes (upsert por id)
+    const brPendientes = Object.entries(STATE.brechas||{}).filter(([,b])=>b.syncStatus==='pending');
+    if(brPendientes.length){
+      const payload = brPendientes.map(([id,b])=>({
+        id, levantamiento_id: levId, pregunta_id: b.preguntaId, descripcion: b.descripcion,
+        proceso_afectado: b.procesoAfectado||null, poblacion_afectada: b.poblacionAfectada||null,
+        impacto: b.impacto??null, probabilidad: b.probabilidad??null, criticidad: b.criticidad??null,
+        causa_raiz: b.causaRaiz||null, intervencion_sugerida: b.intervencionSugerida||null,
+        actualizado_en: new Date(b.updatedAt||Date.now()).toISOString(),
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/brechas?on_conflict=id', {
+        method:'POST', headers: Object.assign({}, headers, {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify(payload),
+      });
+      if(res.ok) brPendientes.forEach(([id])=>{ STATE.brechas[id].syncStatus = 'synced'; });
+    }
+
+    // 2e) Subir acciones pendientes (upsert por id)
+    const accPendientes = Object.entries(STATE.acciones||{}).filter(([,a])=>a.syncStatus==='pending');
+    if(accPendientes.length){
+      const payload = accPendientes.map(([id,a])=>({
+        id, brecha_id: a.brechaId, descripcion: a.descripcion, responsable: a.responsable||null,
+        fecha_limite: a.fechaLimite||null, estado: a.estado,
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/acciones?on_conflict=id', {
+        method:'POST', headers: Object.assign({}, headers, {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify(payload),
+      });
+      if(res.ok) accPendientes.forEach(([id])=>{ STATE.acciones[id].syncStatus = 'synced'; });
+    }
+
+    // 2f) Subir ambulancias pendientes (upsert por id)
+    const ambPendientes = Object.entries(STATE.ambulancias||{}).filter(([,a])=>a.syncStatus==='pending');
+    if(ambPendientes.length){
+      const payload = ambPendientes.map(([id,a])=>({
+        id, levantamiento_id: levId, placa: a.placa||null, tipo: a.tipo, estado: a.estado,
+        georreferenciada: !!a.geo, con_comunicacion: !!a.com,
+        actualizado_en: new Date(a.updatedAt||Date.now()).toISOString(),
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/ambulancias?on_conflict=id', {
+        method:'POST', headers: Object.assign({}, headers, {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify(payload),
+      });
+      if(res.ok) ambPendientes.forEach(([id])=>{ STATE.ambulancias[id].syncStatus = 'synced'; });
+    }
+
+    // 2g) Subir entradas de reconstrucción del sismo pendientes (upsert por id)
+    const sisPendientes = Object.entries(STATE.sismo||{}).filter(([,e])=>e.syncStatus==='pending');
+    if(sisPendientes.length){
+      const payload = sisPendientes.map(([id,e])=>({
+        id, levantamiento_id: levId, evento: e.evento, fase: e.fase, hora: e.hora||null,
+        actor: e.actor||null, canal: e.canal||null, descripcion: e.descripcion||null,
+        informacion_disponible: e.informacionDisponible||null, informacion_faltante: e.informacionFaltante||null,
+        recurso_movilizado: e.recursoMovilizado||null, afectacion: e.afectacion||null,
+        tiempo_respuesta: e.tiempoRespuesta||null, leccion_aprendida: e.leccionAprendida||null,
+        actualizado_en: new Date(e.updatedAt||Date.now()).toISOString(),
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/sismo_reconstruccion?on_conflict=id', {
+        method:'POST', headers: Object.assign({}, headers, {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify(payload),
+      });
+      if(res.ok) sisPendientes.forEach(([id])=>{ STATE.sismo[id].syncStatus = 'synced'; });
+    }
+
+    // 2h) Subir puntos del mapa territorial pendientes (upsert por id)
+    const ptPendientes = Object.entries(STATE.puntos||{}).filter(([,p])=>p.syncStatus==='pending');
+    if(ptPendientes.length){
+      const payload = ptPendientes.map(([id,p])=>({
+        id, levantamiento_id: levId, nombre: p.nombre, tipo: p.tipo, municipio: p.municipio||null,
+        lat: p.lat, lng: p.lng, nota: p.nota||null,
+        actualizado_en: new Date(p.updatedAt||Date.now()).toISOString(),
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/puntos_territoriales?on_conflict=id', {
+        method:'POST', headers: Object.assign({}, headers, {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify(payload),
+      });
+      if(res.ok) ptPendientes.forEach(([id])=>{ STATE.puntos[id].syncStatus = 'synced'; });
+    }
+
+    // 2i) Subir prestadores de salud (REPS/campo) pendientes — catálogo compartido de TODO Chocó,
+    // no se filtra por levantamiento_id porque cualquier equipo puede necesitarlo.
+    const prPendientes = Object.entries(STATE.prestadores||{}).filter(([,p])=>p.syncStatus==='pending');
+    if(prPendientes.length){
+      const payload = prPendientes.map(([id,p])=>({
+        id, nombre: p.nombre, municipio: p.municipio, tipo: p.tipo||null, direccion: p.direccion||null,
+        telefono: p.telefono||null, lat: p.lat??null, lng: p.lng??null,
+        fuente: p.fuente, actualizado_en: new Date(p.updatedAt||Date.now()).toISOString(),
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/prestadores_salud?on_conflict=id', {
+        method:'POST', headers: Object.assign({}, headers, {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify(payload),
+      });
+      if(res.ok) prPendientes.forEach(([id])=>{ STATE.prestadores[id].syncStatus = 'synced'; });
+    }
+
+    // 3) Traer respuestas de OTROS equipos para el mismo levantamiento (last-write-wins por fecha)
+    const pull = await fetch(CFG.url + '/rest/v1/respuestas?levantamiento_id=eq.' + encodeURIComponent(levId), { headers });
+    if(pull.ok){
+      const remotas = await pull.json();
+      remotas.forEach(rr=>{
+        const local = STATE.respuestas[rr.pregunta_id];
+        const remotaFecha = new Date(rr.actualizado_en).getTime();
+        if(!local || (remotaFecha > (local.updatedAt||0) && rr.device_id !== STATE.deviceId)){
+          STATE.respuestas[rr.pregunta_id] = {
+            estado: rr.estado, madurez: rr.madurez, impacto: rr.impacto, probabilidad: rr.probabilidad,
+            criticidad: rr.criticidad, lineaBase: rr.linea_base, respuestaRapida: rr.respuesta_rapida,
+            fuente: rr.fuente, metodoVerificacion: rr.metodo_verificacion,
+            brechaHallazgo: rr.brecha_hallazgo, accionRecomendacion: rr.accion_recomendacion,
+            observacion: rr.observacion, updatedAt: remotaFecha, syncStatus: 'synced',
+          };
+        }
+      });
+    }
+
+    // 3b) Traer evidencias de otros equipos para el mismo levantamiento
+    const pullEv = await fetch(CFG.url + '/rest/v1/evidencias?levantamiento_id=eq.' + encodeURIComponent(levId), { headers });
+    if(pullEv.ok){
+      const remotasEv = await pullEv.json();
+      STATE.evidencias = STATE.evidencias || {};
+      remotasEv.forEach(re=>{
+        STATE.evidencias[re.id] = {
+          preguntaId: re.pregunta_id, tipo: re.tipo, nombre: re.nombre, descripcion: re.descripcion,
+          urlArchivo: re.url_archivo, estadoValidacion: re.estado_validacion,
+          creadoPor: re.creado_por_email, syncStatus: 'synced',
+        };
+      });
+    }
+
+    // 3c) Traer indicadores, brechas y acciones de otros equipos
+    const pullInd = await fetch(CFG.url + '/rest/v1/indicador_valores?levantamiento_id=eq.' + encodeURIComponent(levId), { headers });
+    if(pullInd.ok){
+      const remInd = await pullInd.json();
+      STATE.indicadorValores = STATE.indicadorValores || {};
+      remInd.forEach(ri=>{
+        if(!STATE.indicadorValores[ri.id]){
+          STATE.indicadorValores[ri.id] = { indicador: ri.indicador, valor: ri.valor, fecha: ri.fecha_medicion, syncStatus:'synced' };
+        }
+      });
+    }
+    const pullBr = await fetch(CFG.url + '/rest/v1/brechas?levantamiento_id=eq.' + encodeURIComponent(levId), { headers });
+    if(pullBr.ok){
+      const remBr = await pullBr.json();
+      STATE.brechas = STATE.brechas || {};
+      remBr.forEach(rb=>{
+        const local = STATE.brechas[rb.id];
+        const remotaFecha = new Date(rb.actualizado_en).getTime();
+        if(!local || remotaFecha > (local.updatedAt||0)){
+          STATE.brechas[rb.id] = {
+            preguntaId: rb.pregunta_id, descripcion: rb.descripcion, procesoAfectado: rb.proceso_afectado,
+            poblacionAfectada: rb.poblacion_afectada, impacto: rb.impacto, probabilidad: rb.probabilidad,
+            criticidad: rb.criticidad, causaRaiz: rb.causa_raiz, intervencionSugerida: rb.intervencion_sugerida,
+            updatedAt: remotaFecha, syncStatus:'synced',
+          };
+        }
+      });
+    }
+    const pullAcc = await fetch(CFG.url + '/rest/v1/acciones?brecha_id=in.(' + Object.keys(STATE.brechas||{}).map(id=>'"'+id+'"').join(',') + ')', { headers });
+    if(pullAcc.ok && Object.keys(STATE.brechas||{}).length){
+      const remAcc = await pullAcc.json();
+      STATE.acciones = STATE.acciones || {};
+      remAcc.forEach(ra=>{
+        if(!STATE.acciones[ra.id]){
+          STATE.acciones[ra.id] = { brechaId: ra.brecha_id, descripcion: ra.descripcion, responsable: ra.responsable, fechaLimite: ra.fecha_limite, estado: ra.estado, syncStatus:'synced' };
+        }
+      });
+    }
+
+    // 3d) Traer ambulancias y entradas del sismo de otros equipos
+    const pullAmb = await fetch(CFG.url + '/rest/v1/ambulancias?levantamiento_id=eq.' + encodeURIComponent(levId), { headers });
+    if(pullAmb.ok){
+      const remAmb = await pullAmb.json();
+      STATE.ambulancias = STATE.ambulancias || {};
+      remAmb.forEach(ra=>{
+        const local = STATE.ambulancias[ra.id];
+        const remotaFecha = new Date(ra.actualizado_en).getTime();
+        if(!local || remotaFecha > (local.updatedAt||0)){
+          STATE.ambulancias[ra.id] = { placa: ra.placa, tipo: ra.tipo, estado: ra.estado, geo: ra.georreferenciada, com: ra.con_comunicacion, updatedAt: remotaFecha, syncStatus:'synced' };
+        }
+      });
+    }
+    const pullSis = await fetch(CFG.url + '/rest/v1/sismo_reconstruccion?levantamiento_id=eq.' + encodeURIComponent(levId), { headers });
+    if(pullSis.ok){
+      const remSis = await pullSis.json();
+      STATE.sismo = STATE.sismo || {};
+      remSis.forEach(re=>{
+        if(!STATE.sismo[re.id]){
+          STATE.sismo[re.id] = {
+            evento: re.evento, fase: re.fase, hora: re.hora, actor: re.actor, canal: re.canal, descripcion: re.descripcion,
+            informacionDisponible: re.informacion_disponible, informacionFaltante: re.informacion_faltante,
+            recursoMovilizado: re.recurso_movilizado, afectacion: re.afectacion, tiempoRespuesta: re.tiempo_respuesta,
+            leccionAprendida: re.leccion_aprendida, syncStatus:'synced',
+          };
+        }
+      });
+    }
+
+    // 3e) Traer puntos del mapa territorial de otros equipos
+    const pullPt = await fetch(CFG.url + '/rest/v1/puntos_territoriales?levantamiento_id=eq.' + encodeURIComponent(levId), { headers });
+    if(pullPt.ok){
+      const remPt = await pullPt.json();
+      STATE.puntos = STATE.puntos || {};
+      remPt.forEach(rp=>{
+        const local = STATE.puntos[rp.id];
+        const remotaFecha = new Date(rp.actualizado_en).getTime();
+        if(!local || remotaFecha > (local.updatedAt||0)){
+          STATE.puntos[rp.id] = { nombre: rp.nombre, tipo: rp.tipo, municipio: rp.municipio, lat: rp.lat, lng: rp.lng, nota: rp.nota, updatedAt: remotaFecha, syncStatus:'synced' };
+        }
+      });
+    }
+
+    // 3f) Traer el catálogo completo de prestadores (compartido para todo Chocó)
+    const pullPr = await fetch(CFG.url + '/rest/v1/prestadores_salud', { headers });
+    if(pullPr.ok){
+      const remPr = await pullPr.json();
+      STATE.prestadores = STATE.prestadores || {};
+      remPr.forEach(rp=>{
+        const local = STATE.prestadores[rp.id];
+        const remotaFecha = new Date(rp.actualizado_en).getTime();
+        if(!local || remotaFecha > (local.updatedAt||0)){
+          STATE.prestadores[rp.id] = { nombre: rp.nombre, municipio: rp.municipio, tipo: rp.tipo, direccion: rp.direccion, telefono: rp.telefono, lat: rp.lat, lng: rp.lng, fuente: rp.fuente, updatedAt: remotaFecha, syncStatus:'synced' };
+        }
+      });
+    }
+
+    localStorage.setItem(STORE_KEY, JSON.stringify(STATE));
+    updateSyncStatus('Última sincronización: ' + new Date().toLocaleTimeString());
+    if(currentDim) renderQuestions(currentDim);
+    renderAll();
+  }catch(e){
+    console.error(e);
+    updateSyncStatus('Error de sincronización: ' + e.message);
+  }
+}
+
+document.getElementById('btn-sync-now').addEventListener('click', syncNow);
+document.getElementById('btn-sync-now-2').addEventListener('click', syncNow);
+document.getElementById('btn-save-cfg').addEventListener('click', ()=>{
+  CFG.url = document.getElementById('cfg-url').value.trim().replace(/\/+$/,'');
+  CFG.key = document.getElementById('cfg-key').value.trim();
+  localStorage.setItem(CFG_KEY, JSON.stringify(CFG));
+  updateSyncStatus('Configuración guardada.');
+  if(syncEnabled()) syncNow();
+});
+
+/* ============================================================
+   FASE 3 — AUTENTICACIÓN Y ROLES (Supabase Auth)
+   ============================================================ */
+const SESSION_KEY = 'crue_sem_cred_choco_2026_session';
+function loadSession(){
+  try{ const raw = localStorage.getItem(SESSION_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+  return null;
+}
+var SESSION = loadSession(); // {access_token, refresh_token, expires_at, email, user_id, rol}
+function saveSession(){ localStorage.setItem(SESSION_KEY, JSON.stringify(SESSION)); updateAuthUI(); }
+function clearSession(){ SESSION = null; localStorage.removeItem(SESSION_KEY); updateAuthUI(); }
+
+function authMsg(text, isError){
+  const el = document.getElementById('auth-msg');
+  el.style.color = isError ? 'var(--rojo)' : 'var(--teal)';
+  el.textContent = text || '';
+}
+
+async function fetchRole(userId, accessToken){
+  const res = await fetch(CFG.url + '/rest/v1/usuarios_roles?user_id=eq.'+userId, {
+    headers: { 'apikey': CFG.key, 'Authorization': 'Bearer '+accessToken },
+  });
+  if(!res.ok) return null;
+  const rows = await res.json();
+  return rows[0] || null;
+}
+
+async function ensureRole(userId, accessToken, email){
+  let row = await fetchRole(userId, accessToken);
+  if(!row){
+    const rol = document.getElementById('auth-rol').value;
+    const institucion = document.getElementById('auth-institucion').value.trim();
+    await fetch(CFG.url + '/rest/v1/usuarios_roles', {
+      method:'POST',
+      headers: { 'apikey': CFG.key, 'Authorization':'Bearer '+accessToken, 'Content-Type':'application/json', 'Prefer':'return=representation' },
+      body: JSON.stringify([{ user_id:userId, email, rol, institucion }]),
+    });
+    row = { rol, institucion };
+  }
+  return row;
+}
+
+async function doAuth(kind){
+  if(!syncEnabled()){ authMsg('Primero configura la URL y anon key de Supabase arriba.', true); return; }
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-pass').value;
+  if(!email || password.length < 6){ authMsg('Correo válido y contraseña de mínimo 6 caracteres.', true); return; }
+  const endpoint = kind === 'signup' ? '/auth/v1/signup' : '/auth/v1/token?grant_type=password';
+  try{
+    const res = await fetch(CFG.url + endpoint, {
+      method:'POST',
+      headers: { 'apikey': CFG.key, 'Content-Type':'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if(!res.ok){ authMsg(data.error_description || data.msg || data.error || 'No se pudo autenticar.', true); return; }
+    if(!data.access_token){ authMsg('Cuenta creada. Revisa tu correo si Supabase pide confirmación, luego inicia sesión.', false); return; }
+    const roleRow = await ensureRole(data.user.id, data.access_token, email);
+    SESSION = {
+      access_token: data.access_token, refresh_token: data.refresh_token,
+      expires_at: Date.now() + (data.expires_in||3600)*1000,
+      email, user_id: data.user.id, rol: roleRow ? roleRow.rol : 'EVALUADOR',
+    };
+    saveSession();
+    authMsg('Sesión iniciada como '+SESSION.rol+'.', false);
+    if(currentDim) renderQuestions(currentDim);
+    if(navigator.onLine) syncNow();
+  }catch(e){
+    authMsg('Error de red: '+e.message, true);
+  }
+}
+document.getElementById('btn-login').addEventListener('click', ()=>doAuth('login'));
+document.getElementById('btn-signup').addEventListener('click', ()=>doAuth('signup'));
+document.getElementById('btn-logout').addEventListener('click', clearSession);
+
+async function refreshSessionIfNeeded(){
+  if(!SESSION || !syncEnabled()) return;
+  if(Date.now() < SESSION.expires_at - 60000) return; // aún válida
+  if(!navigator.onLine) return; // se reintenta cuando haya señal
+  try{
+    const res = await fetch(CFG.url + '/auth/v1/token?grant_type=refresh_token', {
+      method:'POST',
+      headers: { 'apikey': CFG.key, 'Content-Type':'application/json' },
+      body: JSON.stringify({ refresh_token: SESSION.refresh_token }),
+    });
+    const data = await res.json();
+    if(res.ok && data.access_token){
+      SESSION.access_token = data.access_token;
+      SESSION.refresh_token = data.refresh_token;
+      SESSION.expires_at = Date.now() + (data.expires_in||3600)*1000;
+      saveSession();
+    }
+  }catch(e){ /* se reintenta en el próximo sync */ }
+}
+
+function isReadOnly(){ return SESSION && SESSION.rol === 'CONSULTA_EJECUTIVA'; }
+
+function updateAuthUI(){
+  const out = document.getElementById('auth-logged-out');
+  const inn = document.getElementById('auth-logged-in');
+  const rs = document.getElementById('rolestatus');
+  if(SESSION){
+    out.style.display='none'; inn.style.display='block';
+    document.getElementById('auth-email-display').textContent = SESSION.email;
+    document.getElementById('auth-rol-display').textContent = SESSION.rol;
+    rs.textContent = SESSION.email + ' · ' + SESSION.rol;
+  } else {
+    out.style.display='block'; inn.style.display='none';
+    rs.textContent = 'Sin sesión (solo local)';
+  }
+}
+
+/* ---------------- NAV ---------------- */
+document.querySelectorAll('.navitem').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    document.querySelectorAll('.navitem').forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+item.dataset.view).classList.add('active');
+    if(item.dataset.view === 'levantamiento'){
+      // siempre entra mostrando la cuadrícula de las 12 dimensiones, nunca la última que quedó abierta
+      currentDim = null;
+      document.getElementById('grid-dims').style.display = 'grid';
+      document.getElementById('dim-detail').style.display = 'none';
+    }
+    if(item.dataset.view === 'mapa'){
+      setTimeout(renderMapa, 50); // el contenedor debe estar visible antes de inicializar Leaflet
+    }
+    renderAll();
+  });
+});
+
+/* ---------------- CONTEXTO (listas cerradas) ---------------- */
+const MUNICIPIOS_CHOCO = [
+  'Acandí','Alto Baudó','Atrato','Bagadó','Bahía Solano','Bajo Baudó','Bojayá',
+  'Cantón de San Pablo','Cértegui','Condoto','El Carmen de Atrato','El Carmen del Darién',
+  'Istmina','Juradó','Litoral del San Juan','Lloró','Medio Atrato','Medio Baudó',
+  'Medio San Juan','Nóvita','Nuquí','Quibdó','Riosucio','Río Iró','Río Quito',
+  'San José del Palmar','Sipí','Tadó','Unguía','Unión Panamericana',
+];
+const INSTITUCIONES_CHOCO = [
+  'Secretaría de Salud Departamental del Chocó',
+  'CRUE Chocó',
+  'SEM Chocó',
+  'CRED / Gestión del Riesgo Chocó',
+  'ESE Hospital Departamental San Francisco de Asís',
+];
+const OTRA_INSTITUCION = '__OTRA__';
+
+function poblarInstitucionSelect(municipioActual){
+  const selInst = document.getElementById('ctx-institucion');
+  const valorPrevio = selInst.value;
+  let html = INSTITUCIONES_CHOCO.map(i=>`<option value="${i}">${i}</option>`).join('');
+  if(municipioActual){
+    const prestadores = prestadoresPorMunicipio(municipioActual);
+    if(prestadores.length){
+      html += `<optgroup label="Prestadores registrados en ${escapeHtml(municipioActual)}">` +
+        prestadores.map(p=>`<option value="${escAttr(p.nombre)}">${escapeHtml(p.nombre)} (${p.fuente})</option>`).join('') +
+        `</optgroup>`;
+    }
+  }
+  html += `<option value="${OTRA_INSTITUCION}">Otra institución (escribir nombre exacto)</option>`;
+  selInst.innerHTML = html;
+  // conservar la selección si sigue existiendo entre las opciones nuevas
+  if([...selInst.options].some(o=>o.value===valorPrevio)) selInst.value = valorPrevio;
+}
+
+(function initSelectsContexto(){
+  const selMun = document.getElementById('ctx-municipio');
+  MUNICIPIOS_CHOCO.forEach(m=> selMun.insertAdjacentHTML('beforeend', `<option value="${m}">${m}</option>`));
+  poblarInstitucionSelect('');
+})();
+
+(function initTablasCriterios(){
+  const tImp = document.getElementById('tabla-criterios-impacto');
+  IMPACTO_ESCALA.forEach(i=> tImp.insertAdjacentHTML('beforeend', `<tr><td>${i.v}</td><td><strong>${escapeHtml(i.n.split(' · ')[1])}</strong> — ${escapeHtml(i.d)}</td></tr>`));
+  const tProb = document.getElementById('tabla-criterios-probabilidad');
+  PROBABILIDAD_ESCALA.forEach(i=> tProb.insertAdjacentHTML('beforeend', `<tr><td>${i.v}</td><td><strong>${escapeHtml(i.n.split(' · ')[1])}</strong> — ${escapeHtml(i.d)}</td></tr>`));
+})();
+
+function aplicarContextoGuardado(){
+  const c = STATE.contexto;
+  document.getElementById('ctx-departamento').value = 'Chocó';
+  document.getElementById('ctx-municipio').value = MUNICIPIOS_CHOCO.includes(c.municipio) ? c.municipio : '';
+  document.getElementById('ctx-dependencia').value = c.dependencia || '';
+  document.getElementById('ctx-responsable').value = c.responsable || '';
+
+  poblarInstitucionSelect(document.getElementById('ctx-municipio').value);
+  const selInst = document.getElementById('ctx-institucion');
+  const wrap = document.getElementById('ctx-institucion-otra-wrap');
+  const otraInput = document.getElementById('ctx-institucion-otra');
+  const opcionesActuales = [...selInst.options].map(o=>o.value);
+  if(c.institucion && opcionesActuales.includes(c.institucion)){
+    selInst.value = c.institucion; wrap.style.display = 'none';
+  } else if(c.institucion){
+    selInst.value = OTRA_INSTITUCION; wrap.style.display = 'block'; otraInput.value = c.institucion;
+  } else {
+    selInst.value = ''; wrap.style.display = 'none'; otraInput.value = '';
+  }
+}
+aplicarContextoGuardado();
+
+function guardarContexto(){
+  STATE.contexto.departamento = document.getElementById('ctx-departamento').value;
+  STATE.contexto.municipio = document.getElementById('ctx-municipio').value;
+  STATE.contexto.dependencia = document.getElementById('ctx-dependencia').value;
+  STATE.contexto.responsable = document.getElementById('ctx-responsable').value;
+  const selInst = document.getElementById('ctx-institucion').value;
+  STATE.contexto.institucion = selInst === OTRA_INSTITUCION
+    ? document.getElementById('ctx-institucion-otra').value.trim()
+    : selInst;
+  saveState();
+  renderCtxFooter();
+  if(syncEnabled()) scheduleAutoSync();
+}
+
+document.getElementById('ctx-municipio').addEventListener('change', ()=>{
+  poblarInstitucionSelect(document.getElementById('ctx-municipio').value);
+  guardarContexto();
+});
+document.getElementById('ctx-dependencia').addEventListener('input', guardarContexto);
+document.getElementById('ctx-responsable').addEventListener('input', guardarContexto);
+document.getElementById('ctx-institucion-otra').addEventListener('input', guardarContexto);
+document.getElementById('ctx-institucion').addEventListener('change', ()=>{
+  const esOtra = document.getElementById('ctx-institucion').value === OTRA_INSTITUCION;
+  document.getElementById('ctx-institucion-otra-wrap').style.display = esOtra ? 'block' : 'none';
+  guardarContexto();
+});
+
+function renderCtxFooter(){
+  const c = STATE.contexto;
+  const parts = [c.institucion, c.municipio].filter(Boolean);
+  document.getElementById('ctxfooter').textContent = parts.length ? parts.join(' · ') : 'Sin contexto activo';
+  document.getElementById('pill-lev').textContent = parts.length ? parts.join(' · ') : 'Sin contexto';
+}
+
+/* ---------------- CÁLCULOS AGREGADOS ---------------- */
+function computeStats(){
+  const total = PREGUNTAS.length;
+  let respondidas = 0, sumaMadurez = 0, conMadurez = 0;
+  const porDim = {}; // n -> {total, respondidas, sumaMadurez, conMadurez}
+  const estadoCount = {}; ESTADOS.forEach(e=>estadoCount[e.c]=0);
+  const critCount = {BAJA:0, MEDIA:0, ALTA:0, CRITICA:0};
+  const prioridadCount = {P1:0,P2:0,P3:0,P4:0};
+  const findings = [];
+
+  DIMENSIONES.forEach(d=> porDim[d.n] = {total:0, respondidas:0, sumaMadurez:0, conMadurez:0});
+
+  PREGUNTAS.forEach(q=>{
+    const r = getResp(q.id);
+    porDim[q.d].total++;
+    const answered = r.estado || r.madurez!=null || (r.lineaBase && r.lineaBase.trim()) || r.respuestaRapida;
+    if(answered){
+      respondidas++;
+      porDim[q.d].respondidas++;
+    }
+    if(r.madurez!=null){
+      sumaMadurez += Number(r.madurez);
+      conMadurez++;
+      porDim[q.d].sumaMadurez += Number(r.madurez);
+      porDim[q.d].conMadurez++;
+    }
+    if(r.estado) estadoCount[r.estado] = (estadoCount[r.estado]||0)+1;
+    if(r.criticidad!=null){
+      const cl = clasificarCriticidad(r.criticidad);
+      const key = cl.label === 'CRÍTICA' ? 'CRITICA' : cl.label;
+      critCount[key]++;
+      prioridadCount[cl.p]++;
+      if(r.criticidad>=10){
+        findings.push({id:q.id, dim:q.d, texto:q.t, criticidad:r.criticidad, cl, hallazgo:r.brechaHallazgo||''});
+      }
+    }
+  });
+
+  findings.sort((a,b)=> b.criticidad - a.criticidad);
+
+  return { total, respondidas, sumaMadurez, conMadurez, porDim, estadoCount, critCount, prioridadCount, findings };
+}
+
+/* ---------------- BAR / RADAR HELPERS (SVG-free simple bars) ---------------- */
+function renderBarList(containerId, items, maxVal, colorFn){
+  const el = document.getElementById(containerId);
+  el.innerHTML = items.map(it=>{
+    const pct = maxVal>0 ? Math.round((it.val/maxVal)*100) : 0;
+    return `<div class="barrow">
+      <div class="lbl">${it.label}</div>
+      <div class="track"><div class="fill" style="width:${pct}%;background:${colorFn(it.val)}"></div></div>
+      <div class="num">${it.display!=null?it.display:it.val}</div>
+    </div>`;
+  }).join('');
+}
+
+function madurezColor(v){
+  if(v>=4) return 'var(--teal)';
+  if(v>=2.5) return 'var(--amarillo)';
+  if(v>0) return 'var(--naranja)';
+  return 'var(--gris)';
+}
+function avanceColor(){ return 'var(--teal)'; }
+
+/* ---------------- RENDER: INICIO ---------------- */
+function renderInicio(stats){
+  renderCtxFooter();
+  const dimsCompletas = DIMENSIONES.filter(d=> stats.porDim[d.n].respondidas === stats.porDim[d.n].total).length;
+  const madurezProm = stats.conMadurez ? (stats.sumaMadurez/stats.conMadurez).toFixed(1) : '—';
+  const brechasCriticas = stats.findings.filter(f=>f.cl.label==='CRÍTICA').length;
+  const p1 = stats.prioridadCount.P1;
+
+  document.getElementById('kpi-inicio').innerHTML = `
+    ${kpi(stats.respondidas+' / '+stats.total, 'Preguntas respondidas')}
+    ${kpi(dimsCompletas+' / 12', 'Dimensiones completadas')}
+    ${kpi(madurezProm, 'Madurez promedio (0–5)')}
+    ${kpi(brechasCriticas, 'Brechas críticas', brechasCriticas>0?'crit':'')}
+    ${kpi(p1, 'Prioridades P1', p1>0?'warn':'')}
+  `;
+  const pct = Math.round((stats.respondidas/stats.total)*100);
+  document.getElementById('bar-general').style.width = pct+'%';
+  document.getElementById('txt-general').textContent = pct+'% del instrumento respondido ('+stats.respondidas+' de '+stats.total+' preguntas).';
+}
+function kpi(val,label,cls=''){
+  return `<div class="kpi ${cls}"><div class="val">${val}</div><div class="lbl">${label}</div></div>`;
+}
+
+/* ---------------- RENDER: LEVANTAMIENTO ---------------- */
+let currentDim = null;
+
+function renderDimGrid(stats){
+  const el = document.getElementById('grid-dims');
+  el.innerHTML = DIMENSIONES.map(d=>{
+    const s = stats.porDim[d.n];
+    const pct = Math.round((s.respondidas/s.total)*100);
+    const madProm = s.conMadurez ? (s.sumaMadurez/s.conMadurez).toFixed(1) : '—';
+    return `<div class="dimcard" data-dim="${d.n}">
+      <div class="num">DIMENSIÓN ${String(d.n).padStart(2,'0')}</div>
+      <h3>${d.nombre}</h3>
+      <div class="bar"><div style="width:${pct}%"></div></div>
+      <div class="meta"><span>${s.respondidas}/${s.total} · ${pct}%</span><span>Madurez ${madProm}</span></div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.dimcard').forEach(card=>{
+    card.addEventListener('click', ()=> openDim(Number(card.dataset.dim)));
+  });
+}
+
+function openDim(n){
+  currentDim = n;
+  document.getElementById('grid-dims').style.display = 'none';
+  document.getElementById('dim-detail').style.display = 'block';
+  const dim = DIMENSIONES.find(d=>d.n===n);
+  document.getElementById('dim-title').textContent = 'Dimensión '+n+' — '+dim.nombreCompleto.replace(/^DIMENSIÓN \d+\.\s*/,'');
+  renderQuestions(n);
+}
+document.getElementById('back-to-dims').addEventListener('click', ()=>{
+  document.getElementById('grid-dims').style.display = 'grid';
+  document.getElementById('dim-detail').style.display = 'none';
+  currentDim = null;
+});
+
+function renderQuestions(n){
+  const list = PREGUNTAS.filter(q=>q.d===n);
+  const el = document.getElementById('dim-questions');
+  el.innerHTML = list.map(q=>{
+    const r = getResp(q.id);
+    const estObj = ESTADOS.find(e=>e.c===r.estado);
+    const tieneRespuesta = (r.lineaBase && r.lineaBase.trim()) || r.respuestaRapida;
+    const dotColor = estObj ? estObj.color : (tieneRespuesta ? 'var(--teal)' : 'var(--gris)');
+    return `<div class="qcard" id="qcard-${q.id}">
+      <div class="qhead" data-id="${q.id}">
+        <span class="qid">#${String(q.id).padStart(3,'0')}</span>
+        <span class="qtext">${escapeHtml(q.t)}</span>
+        <span class="qstatus" style="background:${dotColor}"></span>
+      </div>
+      <div class="qbody">${questionForm(q, r)}</div>
+    </div>`;
+  }).join('');
+
+  el.querySelectorAll('.qhead').forEach(h=>{
+    h.addEventListener('click', ()=>{
+      document.getElementById('qcard-'+h.dataset.id).classList.toggle('open');
+    });
+  });
+
+  list.forEach(q=> bindQuestionForm(q.id));
+}
+
+function questionForm(q, r){
+  const rapidaOpts = ['','Sí','No','Parcial','No aplica'].map(v=>
+    `<option value="${v}" ${r.respuestaRapida===v?'selected':''}>${v||'—'}</option>`).join('');
+  const estadoOpts = ESTADOS.map(e=>`<option value="${e.c}" ${r.estado===e.c?'selected':''}>${e.n}</option>`).join('');
+  const madurezOpts = MADUREZ.map(m=>`<option value="${m.v}" ${Number(r.madurez)===m.v?'selected':''}>${m.n}</option>`).join('');
+  const impOpts = IMPACTO_ESCALA.map(i=>`<option value="${i.v}" title="${escAttr(i.d)}" ${Number(r.impacto)===i.v?'selected':''}>${i.n}</option>`).join('');
+  const probOpts = PROBABILIDAD_ESCALA.map(i=>`<option value="${i.v}" title="${escAttr(i.d)}" ${Number(r.probabilidad)===i.v?'selected':''}>${i.n}</option>`).join('');
+  const impDef = IMPACTO_ESCALA.find(i=>i.v===Number(r.impacto));
+  const probDef = PROBABILIDAD_ESCALA.find(i=>i.v===Number(r.probabilidad));
+  const cl = r.criticidad!=null ? clasificarCriticidad(r.criticidad) : null;
+  const ro = isReadOnly() ? 'disabled' : '';
+
+  return `
+    <div class="respuesta-block">
+      <div class="qgrid two">
+        <div class="qfull">
+          <label class="small">RESPUESTA A LA PREGUNTA (línea base)</label>
+          <textarea ${ro} data-field="lineaBase" data-id="${q.id}" placeholder="Escribe aquí la respuesta concreta — el dato, cifra o hecho que responde la pregunta">${escapeHtml(r.lineaBase||'')}</textarea>
+        </div>
+        <div><label class="small">RESPUESTA RÁPIDA (si aplica un sí/no)</label><select ${ro} data-field="respuestaRapida" data-id="${q.id}">${rapidaOpts}</select></div>
+      </div>
+      <p class="registro-fecha" id="fecha-${q.id}">${r.updatedAt ? '🕒 Último registro: ' + fmtFechaHora(r.updatedAt) : 'Sin registrar todavía — se marcará la fecha y hora automáticamente al guardar.'}</p>
+    </div>
+    <div class="qgrid" style="margin-top:0.9rem;padding-top:0.9rem;border-top:1px dashed var(--line);">
+      <div><label class="small">ESTADO</label><select ${ro} data-field="estado" data-id="${q.id}"><option value="">—</option>${estadoOpts}</select></div>
+      <div><label class="small">MADUREZ</label><select ${ro} data-field="madurez" data-id="${q.id}"><option value="">—</option>${madurezOpts}</select></div>
+      <div><label class="small">IMPACTO (1–5)</label><select ${ro} data-field="impacto" data-id="${q.id}"><option value="">—</option>${impOpts}</select>
+        <p class="escala-def" id="impdef-${q.id}">${impDef ? escapeHtml(impDef.d) : ''}</p>
+      </div>
+      <div><label class="small">PROBABILIDAD (1–5)</label><select ${ro} data-field="probabilidad" data-id="${q.id}"><option value="">—</option>${probOpts}</select>
+        <p class="escala-def" id="probdef-${q.id}">${probDef ? escapeHtml(probDef.d) : ''}</p>
+      </div>
+    </div>
+    <div class="qgrid two">
+      <div><label class="small">FUENTE / DOCUMENTO</label><input ${ro} data-field="fuente" data-id="${q.id}" value="${escAttr(r.fuente)}"></div>
+      <div><label class="small">MÉTODO DE VERIFICACIÓN</label><input ${ro} data-field="metodoVerificacion" data-id="${q.id}" value="${escAttr(r.metodoVerificacion)}"></div>
+    </div>
+    <div class="qgrid two">
+      <div class="qfull"><label class="small">BRECHA / HALLAZGO</label><textarea ${ro} data-field="brechaHallazgo" data-id="${q.id}">${escapeHtml(r.brechaHallazgo||'')}</textarea></div>
+      <div class="qfull"><label class="small">ACCIÓN / RECOMENDACIÓN</label><textarea ${ro} data-field="accionRecomendacion" data-id="${q.id}">${escapeHtml(r.accionRecomendacion||'')}</textarea></div>
+      <div class="qfull"><label class="small">OBSERVACIÓN</label><textarea ${ro} data-field="observacion" data-id="${q.id}">${escapeHtml(r.observacion||'')}</textarea></div>
+    </div>
+    <div id="crit-${q.id}">${cl ? `<span class="crit-tag" style="background:rgba(255,255,255,0.05);color:${cl.color};border:1px solid ${cl.color}">Criticidad ${r.criticidad} — ${cl.label} (${cl.p})</span>` : ''}</div>
+    ${evidenceSection(q.id)}
+  `;
+}
+
+function evidenceSection(preguntaId){
+  const items = evidenciasFor(preguntaId);
+  const ro = isReadOnly();
+  const list = items.map(e=>{
+    const estColor = e.estadoValidacion==='VALIDADA' ? 'var(--verde)' : (e.estadoValidacion==='NO_VALIDADA' ? 'var(--rojo)' : 'var(--amarillo)');
+    return `<div class="evidencia-item" style="border-left:3px solid ${estColor}">
+      <div class="ev-top"><strong>${escapeHtml(e.tipo)}</strong> — ${escapeHtml(e.nombre)} <span style="color:${estColor};font-family:var(--mono);font-size:0.68rem;">${e.estadoValidacion.replace(/_/g,' ')}</span></div>
+      ${e.descripcion ? `<div class="ev-desc">${escapeHtml(e.descripcion)}</div>` : ''}
+      ${e.urlArchivo ? `<a href="${escAttr(e.urlArchivo)}" target="_blank" rel="noopener" class="ev-link">${escapeHtml(e.urlArchivo)}</a>` : ''}
+      ${e.updatedAt ? `<div class="registro-fecha">🕒 ${fmtFechaHora(e.updatedAt)}</div>` : ''}
+      ${!ro ? `<button type="button" class="btn ghost small-btn ev-del" data-evid="${e.id}" style="margin-top:0.4rem;">Quitar</button>` : ''}
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="evidence-block" id="evblock-${preguntaId}">
+      <label class="small">EVIDENCIAS (${items.length})</label>
+      <div class="evidencia-list">${list || '<p style="color:var(--ink-dim);font-size:0.78rem;">Sin evidencias registradas.</p>'}</div>
+      ${!ro ? `
+      <div class="qgrid two" style="margin-top:0.6rem;">
+        <div><label class="small">TIPO</label>
+          <select id="ev-tipo-${preguntaId}">
+            <option value="DOCUMENTO">Documento</option>
+            <option value="PDF">PDF</option>
+            <option value="IMAGEN">Imagen</option>
+            <option value="CAPTURA">Captura de pantalla</option>
+            <option value="REGISTRO">Registro</option>
+            <option value="URL">URL / enlace</option>
+            <option value="OBSERVACION_CAMPO">Observación de campo</option>
+          </select>
+        </div>
+        <div><label class="small">NOMBRE</label><input id="ev-nombre-${preguntaId}" placeholder="Ej. Acta de reunión CRUE marzo 2026"></div>
+      </div>
+      <div class="qgrid two" style="margin-top:0.4rem;">
+        <div class="qfull"><label class="small">DESCRIPCIÓN</label><textarea id="ev-desc-${preguntaId}"></textarea></div>
+        <div class="qfull"><label class="small">ENLACE (Drive, URL interna, etc. — opcional)</label><input id="ev-url-${preguntaId}" placeholder="https://..."></div>
+      </div>
+      <button type="button" class="btn ghost small-btn ev-add" data-preg="${preguntaId}" style="margin-top:0.5rem;">+ Agregar evidencia</button>
+      ` : ''}
+    </div>
+  `;
+}
+
+
+function bindQuestionForm(id){
+  document.querySelectorAll(`[data-id="${id}"]`).forEach(input=>{
+    input.addEventListener('change', ()=>{
+      const field = input.dataset.field;
+      setResp(id, {[field]: input.value});
+      // update status dot
+      const r = getResp(id);
+      const estObj = ESTADOS.find(e=>e.c===r.estado);
+      const tieneRespuesta = (r.lineaBase && r.lineaBase.trim()) || r.respuestaRapida;
+      const dot = document.querySelector(`#qcard-${id} .qstatus`);
+      if(dot) dot.style.background = estObj ? estObj.color : (tieneRespuesta ? 'var(--teal)' : 'var(--gris)');
+      // update criticidad tag
+      const critEl = document.getElementById('crit-'+id);
+      if(critEl){
+        if(r.criticidad!=null){
+          const cl = clasificarCriticidad(r.criticidad);
+          critEl.innerHTML = `<span class="crit-tag" style="background:rgba(255,255,255,0.05);color:${cl.color};border:1px solid ${cl.color}">Criticidad ${r.criticidad} — ${cl.label} (${cl.p})</span>`;
+        } else {
+          critEl.innerHTML = '';
+        }
+      }
+      // update definición de escala (impacto/probabilidad) en vivo
+      if(field==='impacto'){
+        const d = document.getElementById('impdef-'+id);
+        const def = IMPACTO_ESCALA.find(i=>i.v===Number(r.impacto));
+        if(d) d.textContent = def ? def.d : '';
+      }
+      if(field==='probabilidad'){
+        const d = document.getElementById('probdef-'+id);
+        const def = PROBABILIDAD_ESCALA.find(i=>i.v===Number(r.probabilidad));
+        if(d) d.textContent = def ? def.d : '';
+      }
+      // actualizar la fecha/hora de registro visible
+      const fechaEl = document.getElementById('fecha-'+id);
+      if(fechaEl) fechaEl.textContent = '🕒 Último registro: ' + fmtFechaHora(r.updatedAt);
+    });
+  });
+
+  bindEvidenceBlock(id);
+}
+
+function bindEvidenceBlock(id){
+  const addBtn = document.querySelector(`#qcard-${id} .ev-add`);
+  if(addBtn){
+    addBtn.addEventListener('click', ()=>{
+      const tipo = document.getElementById('ev-tipo-'+id).value;
+      const nombre = document.getElementById('ev-nombre-'+id).value.trim();
+      const descripcion = document.getElementById('ev-desc-'+id).value.trim();
+      const urlArchivo = document.getElementById('ev-url-'+id).value.trim();
+      if(!nombre){ alert('Ponle un nombre a la evidencia antes de agregarla.'); return; }
+      addEvidencia(id, {tipo, nombre, descripcion, urlArchivo});
+      const block = document.getElementById('evblock-'+id);
+      block.outerHTML = evidenceSection(id);
+      bindEvidenceBlock(id); // el bloque es nuevo en el DOM: re-vincular botones
+    });
+  }
+  document.querySelectorAll(`#qcard-${id} .ev-del`).forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(confirm('¿Quitar esta evidencia? Si ya se sincronizó, seguirá visible para otros equipos hasta que se borre también en Supabase.')){
+        removeEvidenciaLocal(btn.dataset.evid);
+        const block = document.getElementById('evblock-'+id);
+        block.outerHTML = evidenceSection(id);
+        bindEvidenceBlock(id);
+      }
+    });
+  });
+}
+
+/* ---------------- RENDER: DASHBOARD ---------------- */
+function renderDashboard(stats){
+  const madurezProm = stats.conMadurez ? (stats.sumaMadurez/stats.conMadurez).toFixed(1) : '0';
+  document.getElementById('kpi-dashboard').innerHTML = `
+    ${kpi(Math.round((stats.respondidas/stats.total)*100)+'%', 'Avance del instrumento')}
+    ${kpi(madurezProm, 'Madurez promedio')}
+    ${kpi(stats.critCount.CRITICA + stats.critCount.ALTA, 'Brechas alta + crítica', (stats.critCount.CRITICA+stats.critCount.ALTA)>0?'crit':'')}
+    ${kpi(stats.prioridadCount.P1, 'Prioridades P1', stats.prioridadCount.P1>0?'warn':'')}
+  `;
+
+  const madurezItems = DIMENSIONES.map(d=>{
+    const s = stats.porDim[d.n];
+    const v = s.conMadurez ? (s.sumaMadurez/s.conMadurez) : 0;
+    return {label:d.nombre, val: Number(v.toFixed(2)), display: s.conMadurez? v.toFixed(1) : '—'};
+  });
+  renderBarList('chart-madurez', madurezItems, 5, madurezColor);
+
+  const avanceItems = DIMENSIONES.map(d=>{
+    const s = stats.porDim[d.n];
+    const pct = Math.round((s.respondidas/s.total)*100);
+    return {label:d.nombre, val: pct, display: pct+'%'};
+  });
+  renderBarList('chart-avance', avanceItems, 100, avanceColor);
+
+  const critItems = [
+    {label:'Baja (1–4)',   val:stats.critCount.BAJA,   display:stats.critCount.BAJA},
+    {label:'Media (5–9)',  val:stats.critCount.MEDIA,  display:stats.critCount.MEDIA},
+    {label:'Alta (10–16)', val:stats.critCount.ALTA,   display:stats.critCount.ALTA},
+    {label:'Crítica (17–25)', val:stats.critCount.CRITICA, display:stats.critCount.CRITICA},
+  ];
+  const critColors = {'Baja (1–4)':'var(--verde)','Media (5–9)':'var(--amarillo)','Alta (10–16)':'var(--naranja)','Crítica (17–25)':'var(--rojo)'};
+  const maxCrit = Math.max(1, ...critItems.map(i=>i.val));
+  renderBarList('chart-criticidad', critItems, maxCrit, (v)=>{
+    const it = critItems.find(i=>i.val===v);
+    return critColors[it ? it.label : ''] || 'var(--teal)';
+  });
+
+  const estadoItems = ESTADOS.map(e=>({label:e.n, val:stats.estadoCount[e.c]||0, display:stats.estadoCount[e.c]||0, color:e.color}));
+  const maxEst = Math.max(1, ...estadoItems.map(i=>i.val));
+  renderBarList('chart-estado', estadoItems, maxEst, (v)=>{
+    const it = estadoItems.find(i=>i.val===v);
+    return it ? it.color : 'var(--teal)';
+  });
+  document.getElementById('legend-estado').innerHTML = ESTADOS.map(e=>`<span><i class="sw" style="background:${e.color}"></i>${e.n}</span>`).join('');
+}
+
+/* ---------------- RENDER: ANALITICA ---------------- */
+function renderAnalitica(stats){
+  const dimList = DIMENSIONES.map(d=>{
+    const s = stats.porDim[d.n];
+    return {n:d.n, nombre:d.nombre, mad: s.conMadurez ? s.sumaMadurez/s.conMadurez : null};
+  }).filter(d=>d.mad!=null);
+
+  let masFuerte = '—', masDebil = '—';
+  if(dimList.length){
+    dimList.sort((a,b)=> b.mad - a.mad);
+    masFuerte = dimList[0].nombre+' ('+dimList[0].mad.toFixed(1)+')';
+    masDebil = dimList[dimList.length-1].nombre+' ('+dimList[dimList.length-1].mad.toFixed(1)+')';
+  }
+
+  document.getElementById('kpi-analitica').innerHTML = `
+    ${kpi(masFuerte, 'Dimensión más madura')}
+    ${kpi(masDebil, 'Dimensión más débil', 'warn')}
+  `;
+}
+
+/* ============================================================
+   FASE 10 — MÓDULOS CRUE / SEM / CRED
+   ============================================================ */
+function brechasDeDimension(n){
+  const rango = PREGUNTAS.filter(q=>q.d===n).map(q=>q.id);
+  return Object.entries(STATE.brechas||{})
+    .filter(([,b])=> rango.includes(b.preguntaId))
+    .map(([id,b])=>Object.assign({id},b));
+}
+
+function renderModulo(dimNum, prefix){
+  const stats = computeStats();
+  const s = stats.porDim[dimNum];
+  const pct = Math.round((s.respondidas/s.total)*100);
+  const madProm = s.conMadurez ? (s.sumaMadurez/s.conMadurez).toFixed(1) : '—';
+  const brechas = brechasDeDimension(dimNum);
+  const brechasCriticas = brechas.filter(b=>{ const cl=clasificarCriticidad(b.criticidad); return cl && cl.label==='CRÍTICA'; }).length;
+
+  const kpiEl = document.getElementById('kpi-'+prefix);
+  if(kpiEl){
+    kpiEl.innerHTML = `
+      ${kpi(pct+'%', 'Avance de la dimensión')}
+      ${kpi(madProm, 'Madurez promedio')}
+      ${kpi(brechas.length, 'Brechas formalizadas', brechas.length>0?'warn':'')}
+      ${kpi(brechasCriticas, 'Brechas críticas', brechasCriticas>0?'crit':'')}
+    `;
+  }
+  const listEl = document.getElementById('brechas-'+prefix);
+  if(listEl){
+    listEl.innerHTML = brechas.length ? brechas.map(b=>{
+      const cl = clasificarCriticidad(b.criticidad);
+      return `<div class="finding" style="border-left-color:${cl?cl.color:'var(--gris)'}">
+        <div class="id">Pregunta #${String(b.preguntaId).padStart(3,'0')} ${cl?'· '+cl.label:''}</div>
+        <p>${escapeHtml(b.descripcion)}</p>
+      </div>`;
+    }).join('') : '<p style="color:var(--ink-dim);font-size:0.85rem;">Sin brechas formalizadas en esta dimensión todavía.</p>';
+  }
+}
+
+document.getElementById('btn-ir-crue').addEventListener('click', ()=> irADimension(3));
+document.getElementById('btn-ir-sem').addEventListener('click', ()=> irADimension(4));
+document.getElementById('btn-ir-cred').addEventListener('click', ()=> irADimension(5));
+function irADimension(n){
+  document.querySelectorAll('.navitem').forEach(i=>i.classList.remove('active'));
+  const nav = [...document.querySelectorAll('.navitem')].find(i=>i.dataset.view==='levantamiento');
+  nav.classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-levantamiento').classList.add('active');
+  openDim(n);
+}
+
+/* ---- SEM: registro de ambulancias ---- */
+function renderAmbulancias(){
+  const listEl = document.getElementById('ambulancias-list');
+  const ambs = Object.entries(STATE.ambulancias||{}).map(([id,a])=>Object.assign({id},a));
+  const total = ambs.length;
+  const operativas = ambs.filter(a=>a.estado==='operativa').length;
+  const fuera = ambs.filter(a=>a.estado==='fuera_de_servicio').length;
+  const mision = ambs.filter(a=>a.estado==='en_mision').length;
+  const geo = ambs.filter(a=>a.geo).length;
+  const com = ambs.filter(a=>a.com).length;
+
+  listEl.innerHTML = `
+    <div class="grid-kpi" style="margin-bottom:1rem;">
+      ${kpi(total,'Total registradas')}
+      ${kpi(operativas,'Operativas')}
+      ${kpi(fuera,'Fuera de servicio', fuera>0?'warn':'')}
+      ${kpi(mision,'En misión')}
+      ${kpi(geo+'/'+total,'Georreferenciadas')}
+      ${kpi(com+'/'+total,'Con comunicación')}
+    </div>
+    ${ambs.map(a=>`<div class="evidencia-item" style="margin-bottom:0.4rem;">
+      <strong>${escapeHtml(a.placa||'sin placa')}</strong> — ${a.tipo} · ${a.estado.replace(/_/g,' ')} ${a.geo?'· GPS':''} ${a.com?'· con comunicación':'· sin comunicación'}
+    </div>`).join('')}
+  `;
+}
+document.getElementById('btn-add-ambulancia').addEventListener('click', ()=>{
+  const placa = document.getElementById('amb-placa').value.trim();
+  const tipo = document.getElementById('amb-tipo').value;
+  const estado = document.getElementById('amb-estado').value;
+  const geo = document.getElementById('amb-geo').checked;
+  const com = document.getElementById('amb-com').checked;
+  STATE.ambulancias = STATE.ambulancias || {};
+  const id = uuid();
+  STATE.ambulancias[id] = { placa, tipo, estado, geo, com, updatedAt:Date.now(), syncStatus:'pending' };
+  saveState(); scheduleAutoSync();
+  document.getElementById('amb-placa').value='';
+  renderAmbulancias();
+  renderModulo(4,'sem');
+});
+
+/* ============================================================
+   FASE 11 — RECONSTRUCCIÓN DEL SISMO
+   ============================================================ */
+const FASES_SISMO = ['ANTES','DURANTE','RESPUESTA_INMEDIATA','ATENCION','REFERENCIA','RECUPERACION'];
+const FASES_LABEL = {ANTES:'Antes', DURANTE:'Durante', RESPUESTA_INMEDIATA:'Respuesta inmediata', ATENCION:'Atención', REFERENCIA:'Referencia', RECUPERACION:'Recuperación'};
+
+document.getElementById('btn-add-sismo').addEventListener('click', ()=>{
+  const evento = document.getElementById('sis-evento').value.trim();
+  if(!evento){ alert('Indica a qué evento pertenece esta entrada.'); return; }
+  STATE.sismo = STATE.sismo || {};
+  const id = uuid();
+  STATE.sismo[id] = {
+    evento, fase: document.getElementById('sis-fase').value, hora: document.getElementById('sis-hora').value,
+    actor: document.getElementById('sis-actor').value.trim(), canal: document.getElementById('sis-canal').value.trim(),
+    descripcion: document.getElementById('sis-desc').value.trim(),
+    informacionDisponible: document.getElementById('sis-infodisp').value.trim(),
+    informacionFaltante: document.getElementById('sis-infofalta').value.trim(),
+    recursoMovilizado: document.getElementById('sis-recurso').value.trim(),
+    afectacion: document.getElementById('sis-afectacion').value.trim(),
+    tiempoRespuesta: document.getElementById('sis-tiemporesp').value.trim(),
+    leccionAprendida: document.getElementById('sis-leccion').value.trim(),
+    updatedAt: Date.now(), syncStatus:'pending',
+  };
+  saveState(); scheduleAutoSync();
+  ['sis-hora','sis-actor','sis-canal','sis-desc','sis-infodisp','sis-infofalta','sis-recurso','sis-afectacion','sis-tiemporesp','sis-leccion'].forEach(f=>document.getElementById(f).value='');
+  renderSismo();
+});
+
+function renderSismo(){
+  const el = document.getElementById('sismo-timeline');
+  const entries = Object.entries(STATE.sismo||{}).map(([id,e])=>Object.assign({id},e));
+  if(!entries.length){ el.innerHTML = '<p style="color:var(--ink-dim);font-size:0.85rem;">Sin entradas todavía.</p>'; return; }
+  entries.sort((a,b)=> FASES_SISMO.indexOf(a.fase)-FASES_SISMO.indexOf(b.fase) || (a.hora||'').localeCompare(b.hora||''));
+  el.innerHTML = FASES_SISMO.map(fase=>{
+    const items = entries.filter(e=>e.fase===fase);
+    if(!items.length) return '';
+    return `<div style="margin-bottom:1rem;">
+      <div class="navgroup-label" style="padding-left:0;">${FASES_LABEL[fase]}</div>
+      ${items.map(e=>`<div class="evidencia-item" style="margin-bottom:0.4rem;">
+        <div class="ev-top"><strong>${e.hora||'sin hora'}</strong> — ${escapeHtml(e.actor||'')} ${e.canal?'· '+escapeHtml(e.canal):''}</div>
+        ${e.descripcion?`<div class="ev-desc">${escapeHtml(e.descripcion)}</div>`:''}
+        ${e.recursoMovilizado?`<div class="ev-desc">Recurso: ${escapeHtml(e.recursoMovilizado)}</div>`:''}
+        ${e.leccionAprendida?`<div class="ev-desc">Lección aprendida: ${escapeHtml(e.leccionAprendida)}</div>`:''}
+        ${e.updatedAt?`<div class="registro-fecha">🕒 Registrado: ${fmtFechaHora(e.updatedAt)}</div>`:''}
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+
+/* ============================================================
+   FASE 8 — INDICADORES
+   ============================================================ */
+const INDICADORES = [
+  {k:'tiempo_recepcion',        n:'Tiempo de recepción',                    u:'min'},
+  {k:'tiempo_regulacion',       n:'Tiempo de regulación',                   u:'min'},
+  {k:'tiempo_despacho',         n:'Tiempo de despacho',                     u:'min'},
+  {k:'tiempo_llegada',          n:'Tiempo de llegada',                      u:'min'},
+  {k:'tiempo_traslado',         n:'Tiempo de traslado',                     u:'min'},
+  {k:'tiempo_aceptacion',       n:'Tiempo de aceptación',                   u:'min'},
+  {k:'disp_ambulancias',        n:'Disponibilidad de ambulancias',          u:'%'},
+  {k:'disp_hospitalaria',       n:'Disponibilidad hospitalaria',            u:'%'},
+  {k:'eventos_trazabilidad',    n:'Eventos con trazabilidad completa',      u:'%'},
+  {k:'referencias_completas',   n:'Referencias con información completa',   u:'%'},
+  {k:'contrarref_recibidas',    n:'Contrarreferencias recibidas',           u:'%'},
+  {k:'disp_comunicaciones',     n:'Disponibilidad de comunicaciones',       u:'%'},
+  {k:'disp_crue',               n:'Disponibilidad del CRUE',                u:'%'},
+  {k:'sistemas_interoperables', n:'Sistemas interoperables',                u:'%'},
+  {k:'activos_con_respaldo',    n:'Activos críticos con respaldo',          u:'%'},
+  {k:'usuarios_acceso_rol',     n:'Usuarios con acceso por rol',            u:'%'},
+  {k:'incidentes_seguridad',    n:'Incidentes de seguridad',                u:'#'},
+  {k:'tiempo_recuperacion',     n:'Tiempo de recuperación',                 u:'h'},
+  {k:'simulacros_realizados',   n:'Simulacros realizados',                  u:'#'},
+  {k:'satisfaccion_usuario',    n:'Satisfacción del usuario',               u:'%'},
+];
+
+function indicadorHistorial(k){
+  return Object.entries(STATE.indicadorValores||{})
+    .filter(([,v])=> v.indicador === k)
+    .map(([id,v])=> Object.assign({id}, v))
+    .sort((a,b)=> b.fecha.localeCompare(a.fecha));
+}
+function addIndicadorValor(k, valor, fecha){
+  STATE.indicadorValores = STATE.indicadorValores || {};
+  const id = uuid();
+  STATE.indicadorValores[id] = { indicador:k, valor:Number(valor), fecha, updatedAt:Date.now(), syncStatus:'pending' };
+  saveState();
+  scheduleAutoSync();
+}
+
+function renderIndicadores(){
+  const el = document.getElementById('indicadores-list');
+  const ro = isReadOnly();
+  el.innerHTML = INDICADORES.map(ind=>{
+    const hist = indicadorHistorial(ind.k);
+    const ultimo = hist[0];
+    const filas = hist.slice(0,5).map(h=>`<div class="barrow"><div class="lbl">${h.fecha}</div><div class="track"></div><div class="num">${h.valor}${ind.u}</div></div>`).join('');
+    return `<div class="panel" style="margin-bottom:0.8rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.6rem;">
+        <div>
+          <strong>${escapeHtml(ind.n)}</strong>
+          <div style="font-size:0.72rem;color:var(--ink-dim);font-family:var(--mono);">${ind.u} · último: ${ultimo ? ultimo.valor+ind.u+' ('+ultimo.fecha+')' : 'sin datos'}</div>
+        </div>
+        ${!ro ? `
+        <div style="display:flex;gap:0.5rem;align-items:flex-end;">
+          <div><label class="small">VALOR</label><input type="number" step="any" style="width:110px" id="ind-val-${ind.k}"></div>
+          <div><label class="small">FECHA</label><input type="date" style="width:150px" id="ind-fecha-${ind.k}"></div>
+          <button class="btn small-btn btn-add-ind" data-ind="${ind.k}">+</button>
+        </div>` : ''}
+      </div>
+      ${filas ? `<div style="margin-top:0.7rem;">${filas}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  if(!ro){
+    INDICADORES.forEach(ind=>{
+      const btn = el.querySelector(`button[data-ind="${ind.k}"]`);
+      if(btn) btn.addEventListener('click', ()=>{
+        const val = document.getElementById('ind-val-'+ind.k).value;
+        const fecha = document.getElementById('ind-fecha-'+ind.k).value || new Date().toISOString().slice(0,10);
+        if(val===''){ return; }
+        addIndicadorValor(ind.k, val, fecha);
+        renderIndicadores();
+      });
+    });
+  }
+}
+
+/* ============================================================
+   FASE 9 — BRECHAS Y PRIORIZACIÓN
+   ============================================================ */
+function brechaYaExiste(preguntaId){
+  return Object.values(STATE.brechas||{}).some(b=>b.preguntaId===preguntaId);
+}
+function crearBrechaDesdeHallazgo(f){
+  STATE.brechas = STATE.brechas || {};
+  const id = uuid();
+  STATE.brechas[id] = {
+    preguntaId: f.id, descripcion: f.texto, procesoAfectado:'', poblacionAfectada:'',
+    impacto: getResp(f.id).impacto, probabilidad: getResp(f.id).probabilidad, criticidad: f.criticidad,
+    causaRaiz:'', intervencionSugerida:'', updatedAt:Date.now(), syncStatus:'pending',
+  };
+  saveState();
+  scheduleAutoSync();
+  renderAll();
+}
+function addAccion(brechaId, data){
+  STATE.acciones = STATE.acciones || {};
+  const id = uuid();
+  STATE.acciones[id] = Object.assign({brechaId, estado:'PENDIENTE', updatedAt:Date.now(), syncStatus:'pending'}, data);
+  saveState();
+  scheduleAutoSync();
+}
+function accionesDe(brechaId){
+  return Object.entries(STATE.acciones||{}).filter(([,a])=>a.brechaId===brechaId).map(([id,a])=>Object.assign({id},a));
+}
+
+function renderBrechas(stats){
+  const ro = isReadOnly();
+  const candidatas = stats.findings.filter(f=> !brechaYaExiste(f.id));
+  const candEl = document.getElementById('brechas-candidatas');
+  candEl.innerHTML = candidatas.length ? candidatas.slice(0,30).map(f=>`
+    <div class="finding" style="border-left-color:${f.cl.color}">
+      <div class="id">#${String(f.id).padStart(3,'0')} · Dimensión ${f.dim} · Criticidad ${f.criticidad} — ${f.cl.label} (${f.cl.p})</div>
+      <p>${escapeHtml(f.texto)}</p>
+      ${!ro ? `<button class="btn ghost small-btn btn-formalizar" data-preg="${f.id}" style="margin-top:0.5rem;">Convertir en brecha formal</button>` : ''}
+    </div>
+  `).join('') : '<p style="color:var(--ink-dim);font-size:0.85rem;">Sin candidatas por ahora.</p>';
+
+  candEl.querySelectorAll('.btn-formalizar').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const pid = Number(btn.dataset.preg);
+      const f = stats.findings.find(x=>x.id===pid);
+      if(f) crearBrechaDesdeHallazgo(f);
+    });
+  });
+
+  const regEl = document.getElementById('brechas-registradas');
+  const brechas = Object.entries(STATE.brechas||{}).map(([id,b])=>Object.assign({id},b));
+  if(!brechas.length){
+    regEl.innerHTML = '<p style="color:var(--ink-dim);font-size:0.85rem;">Aún no has formalizado ninguna brecha.</p>';
+    return;
+  }
+  brechas.sort((a,b)=> (b.criticidad||0)-(a.criticidad||0));
+  regEl.innerHTML = brechas.map(b=>{
+    const cl = clasificarCriticidad(b.criticidad);
+    const acciones = accionesDe(b.id);
+    return `<div class="finding" style="border-left-color:${cl?cl.color:'var(--gris)'};margin-bottom:0.7rem;">
+      <div class="id">Brecha · pregunta #${String(b.preguntaId).padStart(3,'0')} ${cl?'· '+cl.label+' ('+cl.p+')':''}</div>
+      <p>${escapeHtml(b.descripcion)}</p>
+      <div class="qgrid two" style="margin-top:0.6rem;">
+        <div><label class="small">PROCESO AFECTADO</label><input ${ro?'disabled':''} data-brecha-field="procesoAfectado" data-brecha="${b.id}" value="${escAttr(b.procesoAfectado)}"></div>
+        <div><label class="small">POBLACIÓN AFECTADA</label><input ${ro?'disabled':''} data-brecha-field="poblacionAfectada" data-brecha="${b.id}" value="${escAttr(b.poblacionAfectada)}"></div>
+        <div class="qfull"><label class="small">CAUSA RAÍZ</label><textarea ${ro?'disabled':''} data-brecha-field="causaRaiz" data-brecha="${b.id}">${escapeHtml(b.causaRaiz||'')}</textarea></div>
+        <div class="qfull"><label class="small">INTERVENCIÓN SUGERIDA</label><textarea ${ro?'disabled':''} data-brecha-field="intervencionSugerida" data-brecha="${b.id}">${escapeHtml(b.intervencionSugerida||'')}</textarea></div>
+      </div>
+      <div style="margin-top:0.7rem;">
+        <label class="small">ACCIONES / PLAN</label>
+        ${acciones.map(a=>`<div class="evidencia-item" style="margin-top:0.4rem;">
+          <strong>${escapeHtml(a.descripcion)}</strong> — ${escapeHtml(a.responsable||'sin responsable')} · ${a.fechaLimite||'sin fecha'} · <span style="font-family:var(--mono);">${a.estado}</span>
+        </div>`).join('')}
+        ${!ro ? `<div class="qgrid" style="margin-top:0.5rem;">
+          <input placeholder="Descripción de la acción" id="acc-desc-${b.id}">
+          <input placeholder="Responsable" id="acc-resp-${b.id}">
+          <input type="date" id="acc-fecha-${b.id}">
+          <button class="btn ghost small-btn btn-add-accion" data-brecha="${b.id}">+ Agregar acción</button>
+        </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  if(!ro){
+    regEl.querySelectorAll('[data-brecha-field]').forEach(input=>{
+      input.addEventListener('change', ()=>{
+        const id = input.dataset.brecha, field = input.dataset.brechaField;
+        STATE.brechas[id][field] = input.value;
+        STATE.brechas[id].updatedAt = Date.now();
+        STATE.brechas[id].syncStatus = 'pending';
+        saveState();
+        scheduleAutoSync();
+      });
+    });
+    regEl.querySelectorAll('.btn-add-accion').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const bid = btn.dataset.brecha;
+        const descripcion = document.getElementById('acc-desc-'+bid).value.trim();
+        const responsable = document.getElementById('acc-resp-'+bid).value.trim();
+        const fechaLimite = document.getElementById('acc-fecha-'+bid).value;
+        if(!descripcion) return;
+        addAccion(bid, {descripcion, responsable, fechaLimite});
+        renderBrechas(computeStats());
+      });
+    });
+  }
+}
+
+/* ============================================================
+   FASE 12 — MAPA TERRITORIAL
+   ============================================================ */
+let __map = null;
+const TIPO_COLOR = {CRUE:'#2dd4bf', SEM:'#eab308', CRED:'#f97316', HOSPITAL:'#ef4444', IPS:'#38bdf8', CENTRO_SALUD:'#a78bfa', OTRO:'#5b7573'};
+
+document.getElementById('btn-add-punto').addEventListener('click', ()=>{
+  const nombre = document.getElementById('pt-nombre').value.trim();
+  const lat = parseFloat(document.getElementById('pt-lat').value);
+  const lng = parseFloat(document.getElementById('pt-lng').value);
+  if(!nombre || isNaN(lat) || isNaN(lng)){ alert('Nombre, latitud y longitud son obligatorios (números reales, no inventados).'); return; }
+  STATE.puntos = STATE.puntos || {};
+  const id = uuid();
+  STATE.puntos[id] = {
+    nombre, tipo: document.getElementById('pt-tipo').value, municipio: document.getElementById('pt-municipio').value.trim(),
+    lat, lng, nota: document.getElementById('pt-nota').value.trim(), updatedAt: Date.now(), syncStatus:'pending',
+  };
+  saveState(); scheduleAutoSync();
+  ['pt-nombre','pt-municipio','pt-lat','pt-lng','pt-nota'].forEach(f=>document.getElementById(f).value='');
+  renderMapa();
+});
+
+function prestadoresConGeo(){
+  return Object.entries(STATE.prestadores||{})
+    .filter(([,p])=> p.lat!=null && p.lng!=null)
+    .map(([id,p])=>Object.assign({id},p));
+}
+
+function renderMapa(){
+  const cont = document.getElementById('territorio-map');
+  const listEl = document.getElementById('territorio-list');
+  const puntos = Object.entries(STATE.puntos||{}).map(([id,p])=>Object.assign({id},p));
+  const prestGeo = prestadoresConGeo();
+
+  const puntosHtml = puntos.map(p=>`
+    <div class="evidencia-item" style="border-left:3px solid ${TIPO_COLOR[p.tipo]||'var(--gris)'}">
+      <strong>${escapeHtml(p.nombre)}</strong> — ${p.tipo} · ${escapeHtml(p.municipio||'')} · ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}
+      ${p.nota?`<div class="ev-desc">${escapeHtml(p.nota)}</div>`:''}
+    </div>`).join('');
+  const prestHtml = prestGeo.map(p=>`
+    <div class="evidencia-item" style="border-left:3px solid ${p.fuente==='REPS'?'var(--teal)':'var(--amarillo)'}">
+      <strong>${escapeHtml(p.nombre)}</strong> <span style="font-family:var(--mono);font-size:0.65rem;color:${p.fuente==='REPS'?'var(--teal)':'var(--amarillo)'}">${p.fuente}</span>
+      — ${escapeHtml(p.municipio||'')} · ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}
+      <div class="ev-desc">${p.direccion?escapeHtml(p.direccion):'Sin dirección registrada'} ${p.telefono?'· ☎ '+escapeHtml(p.telefono):''}</div>
+    </div>`).join('');
+
+  listEl.innerHTML = (puntosHtml+prestHtml) ? `
+    ${prestHtml ? `<p class="small" style="margin-bottom:0.4rem;color:var(--ink-dim);">PRESTADORES DE SALUD (${prestGeo.length})</p>${prestHtml}` : ''}
+    ${puntosHtml ? `<p class="small" style="margin:0.8rem 0 0.4rem;color:var(--ink-dim);">OTROS PUNTOS (${puntos.length})</p>${puntosHtml}` : ''}
+  ` : '<p style="color:var(--ink-dim);font-size:0.85rem;">Sin puntos registrados todavía. Agrega uno abajo, o pon coordenadas a un prestador desde la pestaña "Prestadores (REPS)".</p>';
+
+  if(typeof L === 'undefined'){
+    cont.innerHTML = '<p style="padding:1rem;color:var(--ink-dim);font-size:0.85rem;">El mapa no pudo cargar (sin conexión a internet en este momento). Los puntos siguen guardados localmente — vuelve a abrir esta pestaña cuando tengas señal.</p>';
+    return;
+  }
+  if(!__map){
+    __map = L.map('territorio-map').setView([5.6947, -76.6583], 8); // centro aproximado de Chocó
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd', maxZoom: 20,
+    }).addTo(__map);
+    __map.__markers = [];
+  }
+  __map.__markers.forEach(m=>__map.removeLayer(m));
+  const marcadoresPuntos = puntos.map(p=>{
+    const marker = L.circleMarker([p.lat,p.lng], { radius:8, color:TIPO_COLOR[p.tipo]||'#5b7573', fillColor:TIPO_COLOR[p.tipo]||'#5b7573', fillOpacity:0.85 }).addTo(__map);
+    marker.bindPopup(`<strong>${escapeHtml(p.nombre)}</strong><br>${p.tipo} · ${escapeHtml(p.municipio||'')}${p.nota?'<br>'+escapeHtml(p.nota):''}`);
+    return marker;
+  });
+  const marcadoresPrestadores = prestGeo.map(p=>{
+    const color = p.fuente==='REPS' ? '#2dd4bf' : '#eab308';
+    const marker = L.circleMarker([p.lat,p.lng], { radius:8, color, fillColor:color, fillOpacity:0.85 }).addTo(__map);
+    marker.bindPopup(
+      `<strong>${escapeHtml(p.nombre)}</strong><br>` +
+      `${escapeHtml(p.municipio||'')}${p.tipo?' · '+escapeHtml(p.tipo):''}<br>` +
+      `${p.direccion ? '📍 '+escapeHtml(p.direccion)+'<br>' : ''}` +
+      `${p.telefono ? '☎ '+escapeHtml(p.telefono) : 'Sin teléfono registrado'}`
+    );
+    return marker;
+  });
+  __map.__markers = marcadoresPuntos.concat(marcadoresPrestadores);
+  setTimeout(()=>__map.invalidateSize(), 200);
+}
+
+/* ============================================================
+   PRESTADORES DE SALUD (REPS) — catálogo por municipio, alimentado
+   por importación de archivo oficial y/o registro manual en campo.
+   ============================================================ */
+function parseCSV(text){
+  const firstLine = text.split(/\r?\n/)[0] || '';
+  const delim = (firstLine.split(';').length > firstLine.split(',').length) ? ';' : ',';
+  const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+  return lines.map(line=>{
+    const cells = []; let cur = '', inQ = false;
+    for(let i=0;i<line.length;i++){
+      const c = line[i];
+      if(c==='"'){ inQ = !inQ; continue; }
+      if(c===delim && !inQ){ cells.push(cur.trim()); cur=''; continue; }
+      cur += c;
+    }
+    cells.push(cur.trim());
+    return cells;
+  });
+}
+function detectCol(headers, keywords){
+  const low = headers.map(h=>h.toLowerCase());
+  for(const kw of keywords){
+    const i = low.findIndex(h=>h.includes(kw));
+    if(i>=0) return i;
+  }
+  return -1;
+}
+function normalizarTexto(s){
+  return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+let __repsRows = null; // filas crudas parseadas, en espera de confirmación de mapeo
+let __repsHeaders = null;
+
+document.getElementById('reps-file').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    const rows = parseCSV(ev.target.result);
+    if(rows.length < 2){ document.getElementById('reps-import-status').textContent = 'El archivo no tiene filas de datos.'; return; }
+    __repsHeaders = rows[0];
+    __repsRows = rows.slice(1);
+    document.getElementById('reps-mapeo-info').textContent = `Se detectaron ${__repsRows.length} filas y ${__repsHeaders.length} columnas. Confirma qué columna corresponde a cada campo antes de importar:`;
+    const opts = ['<option value="-1">— Ninguna —</option>'].concat(__repsHeaders.map((h,i)=>`<option value="${i}">${escapeHtml(h)}</option>`)).join('');
+    document.getElementById('map-nombre').innerHTML = opts;
+    document.getElementById('map-municipio').innerHTML = opts;
+    document.getElementById('map-tipo').innerHTML = opts;
+    document.getElementById('map-direccion').innerHTML = opts;
+    document.getElementById('map-telefono').innerHTML = opts;
+    document.getElementById('map-nombre').value = detectCol(__repsHeaders, ['nombre_prestador','razon_social','nombre_sede','nombre']);
+    document.getElementById('map-municipio').value = detectCol(__repsHeaders, ['municipio']);
+    document.getElementById('map-tipo').value = detectCol(__repsHeaders, ['naturaleza','clase_persona','nivel','tipo']);
+    document.getElementById('map-direccion').value = detectCol(__repsHeaders, ['direccion']);
+    document.getElementById('map-telefono').value = detectCol(__repsHeaders, ['telefono','celular']);
+    document.getElementById('reps-mapeo').style.display = 'block';
+    document.getElementById('reps-import-status').textContent = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+
+document.getElementById('btn-cancelar-import').addEventListener('click', ()=>{
+  __repsRows = null; __repsHeaders = null;
+  document.getElementById('reps-mapeo').style.display = 'none';
+  document.getElementById('reps-file').value = '';
+});
+
+document.getElementById('btn-confirmar-import').addEventListener('click', ()=>{
+  if(!__repsRows){ return; }
+  const iNombre = Number(document.getElementById('map-nombre').value);
+  const iMunicipio = Number(document.getElementById('map-municipio').value);
+  const iTipo = Number(document.getElementById('map-tipo').value);
+  const iDireccion = Number(document.getElementById('map-direccion').value);
+  const iTelefono = Number(document.getElementById('map-telefono').value);
+  if(iNombre<0 || iMunicipio<0){ alert('Como mínimo necesitas mapear Nombre y Municipio.'); return; }
+
+  const muniNormalizados = MUNICIPIOS_CHOCO.map(m=>({original:m, norm:normalizarTexto(m)}));
+  STATE.prestadores = STATE.prestadores || {};
+  let importadas = 0, omitidas = 0;
+  __repsRows.forEach(row=>{
+    const nombre = (row[iNombre]||'').trim();
+    const muniCruda = (row[iMunicipio]||'').trim();
+    if(!nombre || !muniCruda) { omitidas++; return; }
+    const match = muniNormalizados.find(m=> normalizarTexto(muniCruda).includes(m.norm) || m.norm.includes(normalizarTexto(muniCruda)));
+    if(!match){ omitidas++; return; }
+    const id = uuid();
+    STATE.prestadores[id] = {
+      nombre, municipio: match.original, tipo: iTipo>=0 ? (row[iTipo]||'').trim() : '',
+      direccion: iDireccion>=0 ? (row[iDireccion]||'').trim() : '',
+      telefono: iTelefono>=0 ? (row[iTelefono]||'').trim() : '',
+      lat: null, lng: null,
+      fuente: 'REPS', updatedAt: Date.now(), syncStatus:'pending',
+    };
+    importadas++;
+  });
+  saveState(); scheduleAutoSync();
+  document.getElementById('reps-import-status').textContent = `Importadas ${importadas} filas de Chocó. Omitidas ${omitidas} (sin nombre/municipio, o municipio fuera de Chocó — revisa que el archivo esté filtrado correctamente).`;
+  document.getElementById('reps-mapeo').style.display = 'none';
+  document.getElementById('reps-file').value = '';
+  __repsRows = null; __repsHeaders = null;
+  renderReps();
+});
+
+document.getElementById('btn-add-campo').addEventListener('click', ()=>{
+  const nombre = document.getElementById('campo-nombre').value.trim();
+  const municipio = document.getElementById('campo-municipio').value;
+  if(!nombre || !municipio){ alert('Nombre y municipio son obligatorios.'); return; }
+  const lat = parseFloat(document.getElementById('campo-lat').value);
+  const lng = parseFloat(document.getElementById('campo-lng').value);
+  STATE.prestadores = STATE.prestadores || {};
+  const id = uuid();
+  STATE.prestadores[id] = {
+    nombre, municipio, tipo: document.getElementById('campo-tipo').value,
+    direccion: document.getElementById('campo-direccion').value.trim(),
+    telefono: document.getElementById('campo-telefono').value.trim(),
+    lat: isNaN(lat) ? null : lat, lng: isNaN(lng) ? null : lng,
+    fuente: 'CAMPO', updatedAt: Date.now(), syncStatus:'pending',
+  };
+  saveState(); scheduleAutoSync();
+  ['campo-nombre','campo-direccion','campo-telefono','campo-lat','campo-lng'].forEach(f=>document.getElementById(f).value='');
+  renderReps();
+});
+
+function prestadoresPorMunicipio(municipio){
+  return Object.entries(STATE.prestadores||{})
+    .filter(([,p])=> !municipio || p.municipio===municipio)
+    .map(([id,p])=>Object.assign({id},p))
+    .sort((a,b)=> a.nombre.localeCompare(b.nombre));
+}
+
+function renderReps(){
+  const filtroSel = document.getElementById('reps-filtro-municipio');
+  if(!filtroSel.dataset.init){
+    MUNICIPIOS_CHOCO.forEach(m=> filtroSel.insertAdjacentHTML('beforeend', `<option value="${m}">${m}</option>`));
+    filtroSel.dataset.init = '1';
+  }
+  const campoMuniSel = document.getElementById('campo-municipio');
+  if(!campoMuniSel.dataset.init){
+    MUNICIPIOS_CHOCO.forEach(m=> campoMuniSel.insertAdjacentHTML('beforeend', `<option value="${m}">${m}</option>`));
+    campoMuniSel.dataset.init = '1';
+  }
+
+  const filtro = filtroSel.value;
+  const lista = prestadoresPorMunicipio(filtro);
+  const conGeo = Object.values(STATE.prestadores||{}).filter(p=>p.lat!=null && p.lng!=null).length;
+  document.getElementById('reps-conteo').textContent = `${lista.length} prestador(es) — ${Object.values(STATE.prestadores||{}).filter(p=>p.fuente==='REPS').length} de REPS, ${Object.values(STATE.prestadores||{}).filter(p=>p.fuente==='CAMPO').length} de campo · ${conGeo} ubicados en el mapa`;
+
+  const ro = isReadOnly();
+  const el = document.getElementById('reps-lista');
+  el.innerHTML = lista.length ? lista.map(p=>`
+    <div class="evidencia-item" style="border-left:3px solid ${p.fuente==='REPS'?'var(--teal)':'var(--amarillo)'}">
+      <div class="ev-top"><strong>${escapeHtml(p.nombre)}</strong> <span style="font-family:var(--mono);font-size:0.65rem;color:${p.fuente==='REPS'?'var(--teal)':'var(--amarillo)'}">${p.fuente}</span>
+        ${p.lat!=null ? '<span style="font-size:0.65rem;color:var(--teal);">📍 en el mapa</span>' : ''}</div>
+      <div class="ev-desc">${escapeHtml(p.municipio)} ${p.tipo?'· '+escapeHtml(p.tipo):''} ${p.direccion?'· '+escapeHtml(p.direccion):''} ${p.telefono?'· ☎ '+escapeHtml(p.telefono):''}</div>
+      ${!ro ? `
+      <details style="margin-top:0.5rem;">
+        <summary style="cursor:pointer;font-size:0.72rem;color:var(--teal);">Editar ubicación / teléfono</summary>
+        <div class="qgrid two" style="margin-top:0.5rem;">
+          <div><label class="small">TELÉFONO</label><input id="edit-tel-${p.id}" value="${escAttr(p.telefono)}"></div>
+          <div></div>
+          <div><label class="small">LATITUD</label><input id="edit-lat-${p.id}" type="number" step="any" value="${p.lat!=null?p.lat:''}"></div>
+          <div><label class="small">LONGITUD</label><input id="edit-lng-${p.id}" type="number" step="any" value="${p.lng!=null?p.lng:''}"></div>
+        </div>
+        <button type="button" class="btn ghost small-btn btn-guardar-ubicacion" data-id="${p.id}" style="margin-top:0.4rem;">Guardar</button>
+      </details>
+      ${p.fuente==='CAMPO' ? `<button type="button" class="btn ghost small-btn btn-del-prestador" data-id="${p.id}" style="margin-top:0.4rem;">Quitar</button>` : ''}` : ''}
+    </div>`).join('') : '<p style="color:var(--ink-dim);font-size:0.85rem;">Sin prestadores registrados todavía — importa un archivo REPS o registra uno en campo.</p>';
+
+  el.querySelectorAll('.btn-del-prestador').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      delete STATE.prestadores[btn.dataset.id];
+      saveState();
+      renderReps();
+    });
+  });
+  el.querySelectorAll('.btn-guardar-ubicacion').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.id;
+      const lat = parseFloat(document.getElementById('edit-lat-'+id).value);
+      const lng = parseFloat(document.getElementById('edit-lng-'+id).value);
+      STATE.prestadores[id].telefono = document.getElementById('edit-tel-'+id).value.trim();
+      STATE.prestadores[id].lat = isNaN(lat) ? null : lat;
+      STATE.prestadores[id].lng = isNaN(lng) ? null : lng;
+      STATE.prestadores[id].updatedAt = Date.now();
+      STATE.prestadores[id].syncStatus = 'pending';
+      saveState(); scheduleAutoSync();
+      renderReps();
+    });
+  });
+}
+document.getElementById('reps-filtro-municipio').addEventListener('change', renderReps);
+
+/* ============================================================
+   COMPARATIVO TERRITORIAL — trae TODOS los levantamientos de Supabase
+   (no solo el activo) y compara madurez/avance/brechas entre ellos.
+   ============================================================ */
+let __comparativo = null; // { levantamientos: [...], porNivel: {levId: {porDim, avance, madurezProm, brechasCriticas, brechasAltas}} }
+
+async function cargarComparativo(){
+  const statusEl = document.getElementById('comp-status');
+  if(!syncEnabled()){ statusEl.textContent = 'Configura Supabase (pestaña Exportar) antes de usar el comparativo.'; return; }
+  if(!navigator.onLine){ statusEl.textContent = 'Sin conexión — el comparativo necesita internet.'; return; }
+  await refreshSessionIfNeeded();
+  if(!SESSION){ statusEl.textContent = 'Inicia sesión (pestaña Exportar) para ver el comparativo entre instituciones.'; return; }
+
+  statusEl.textContent = 'Cargando...';
+  const headers = { 'apikey': CFG.key, 'Authorization': 'Bearer ' + SESSION.access_token };
+
+  try{
+    const [levRes, respRes, brRes] = await Promise.all([
+      fetch(CFG.url + '/rest/v1/levantamientos?select=id,institucion,municipio,dependencia,actualizado_en', { headers }),
+      fetch(CFG.url + '/rest/v1/respuestas?select=levantamiento_id,pregunta_id,madurez,criticidad', { headers }),
+      fetch(CFG.url + '/rest/v1/brechas?select=levantamiento_id,criticidad', { headers }),
+    ]);
+    if(!levRes.ok || !respRes.ok){ throw new Error('No se pudo consultar Supabase (revisa la sesión y las políticas RLS).'); }
+    const levantamientos = await levRes.json();
+    const respuestas = await respRes.json();
+    const brechas = brRes.ok ? await brRes.json() : [];
+
+    const preguntaDim = {}; PREGUNTAS.forEach(q=> preguntaDim[q.id] = q.d);
+
+    const porNivel = {};
+    levantamientos.forEach(l=>{
+      porNivel[l.id] = { info:l, porDim:{}, total:0, conMadurez:0, sumaMadurez:0, brechasCriticas:0, brechasAltas:0 };
+      DIMENSIONES.forEach(d=> porNivel[l.id].porDim[d.n] = {suma:0, n:0});
+    });
+    respuestas.forEach(r=>{
+      const bucket = porNivel[r.levantamiento_id];
+      if(!bucket) return;
+      bucket.total++;
+      if(r.madurez!=null){
+        bucket.sumaMadurez += Number(r.madurez); bucket.conMadurez++;
+        const dim = preguntaDim[r.pregunta_id];
+        if(dim && bucket.porDim[dim]){ bucket.porDim[dim].suma += Number(r.madurez); bucket.porDim[dim].n++; }
+      }
+    });
+    brechas.forEach(b=>{
+      const bucket = porNivel[b.levantamiento_id];
+      if(!bucket) return;
+      const cl = b.criticidad!=null ? clasificarCriticidad(b.criticidad) : null;
+      if(cl && cl.label==='CRÍTICA') bucket.brechasCriticas++;
+      if(cl && cl.label==='ALTA') bucket.brechasAltas++;
+    });
+
+    __comparativo = { levantamientos, porNivel };
+    statusEl.textContent = 'Actualizado: ' + new Date().toLocaleTimeString() + ' · ' + levantamientos.length + ' levantamiento(s) encontrados.';
+    renderComparativo();
+  }catch(e){
+    statusEl.textContent = 'Error: ' + e.message;
+  }
+}
+document.getElementById('btn-cargar-comparativo').addEventListener('click', cargarComparativo);
+
+function renderComparativo(){
+  if(!__comparativo) return;
+  const { levantamientos, porNivel } = __comparativo;
+
+  const madurezGlobal = [];
+  levantamientos.forEach(l=>{
+    const b = porNivel[l.id];
+    if(b.conMadurez) madurezGlobal.push(b.sumaMadurez/b.conMadurez);
+  });
+  const promTerritorial = madurezGlobal.length ? (madurezGlobal.reduce((a,b)=>a+b,0)/madurezGlobal.length).toFixed(1) : '—';
+  const totalCriticas = levantamientos.reduce((s,l)=>s+porNivel[l.id].brechasCriticas,0);
+
+  document.getElementById('kpi-comparativo').innerHTML = `
+    ${kpi(levantamientos.length, 'Instituciones/levantamientos')}
+    ${kpi(promTerritorial, 'Madurez promedio territorial')}
+    ${kpi(totalCriticas, 'Brechas críticas (todo Chocó)', totalCriticas>0?'crit':'')}
+  `;
+
+  const tabla = document.getElementById('tabla-comparativo');
+  tabla.innerHTML = `<tr><th>Institución</th><th>Municipio</th><th>Avance</th><th>Madurez</th><th>Brechas críticas</th><th>Brechas altas</th><th>Actualizado</th></tr>` +
+    levantamientos.map(l=>{
+      const b = porNivel[l.id];
+      const pct = b.total ? Math.round((b.total/180)*100) : 0; // aproximado: preguntas con al menos un campo respondido en Supabase
+      const mad = b.conMadurez ? (b.sumaMadurez/b.conMadurez).toFixed(1) : '—';
+      return `<tr>
+        <td>${escapeHtml(l.institucion||'—')}</td><td>${escapeHtml(l.municipio||'—')}</td>
+        <td>${pct}%</td><td>${mad}</td>
+        <td style="color:${b.brechasCriticas>0?'var(--rojo)':'inherit'}">${b.brechasCriticas}</td>
+        <td style="color:${b.brechasAltas>0?'var(--naranja)':'inherit'}">${b.brechasAltas}</td>
+        <td style="font-family:var(--mono);font-size:0.72rem;">${new Date(l.actualizado_en).toLocaleDateString()}</td>
+      </tr>`;
+    }).join('');
+
+  const selA = document.getElementById('comp-a'), selB = document.getElementById('comp-b');
+  const opts = levantamientos.map(l=>`<option value="${l.id}">${escapeHtml(l.institucion||l.id)} — ${escapeHtml(l.municipio||'')}</option>`).join('');
+  selA.innerHTML = opts;
+  selB.innerHTML = '<option value="">— ninguna —</option>' + opts;
+  renderComparativoDimensiones();
+}
+
+function renderComparativoDimensiones(){
+  if(!__comparativo) return;
+  const idA = document.getElementById('comp-a').value;
+  const idB = document.getElementById('comp-b').value;
+  const bucketA = __comparativo.porNivel[idA];
+  if(!bucketA){ document.getElementById('chart-comparativo-dim').innerHTML=''; return; }
+  const bucketB = idB ? __comparativo.porNivel[idB] : null;
+
+  const el = document.getElementById('chart-comparativo-dim');
+  el.innerHTML = DIMENSIONES.map(d=>{
+    const a = bucketA.porDim[d.n];
+    const madA = a.n ? (a.suma/a.n) : 0;
+    const pctA = Math.round((madA/5)*100);
+    let filaB = '';
+    if(bucketB){
+      const bb = bucketB.porDim[d.n];
+      const madB = bb.n ? (bb.suma/bb.n) : 0;
+      const pctB = Math.round((madB/5)*100);
+      filaB = `<div class="barrow"><div class="lbl" style="opacity:0.6;">↳ B</div><div class="track"><div class="fill" style="width:${pctB}%;background:var(--naranja)"></div></div><div class="num">${madB.toFixed(1)}</div></div>`;
+    }
+    return `<div style="margin-bottom:0.5rem;">
+      <div class="barrow"><div class="lbl">${d.nombre}</div><div class="track"><div class="fill" style="width:${pctA}%;background:var(--teal)"></div></div><div class="num">${madA.toFixed(1)}</div></div>
+      ${filaB}
+    </div>`;
+  }).join('');
+}
+document.getElementById('comp-a').addEventListener('change', renderComparativoDimensiones);
+document.getElementById('comp-b').addEventListener('change', renderComparativoDimensiones);
+
+/* ============================================================
+   FASE 13 — INFORME AUTOMÁTICO
+   ============================================================ */
+function generarInforme(){
+  const stats = computeStats();
+  const c = STATE.contexto;
+  const madurezProm = stats.conMadurez ? (stats.sumaMadurez/stats.conMadurez).toFixed(1) : '—';
+  const dimFilas = DIMENSIONES.map(d=>{
+    const s = stats.porDim[d.n];
+    const pct = Math.round((s.respondidas/s.total)*100);
+    const mad = s.conMadurez ? (s.sumaMadurez/s.conMadurez).toFixed(1) : '—';
+    return `<tr><td>${d.n}</td><td>${escapeHtml(d.nombre)}</td><td>${pct}%</td><td>${mad}</td></tr>`;
+  }).join('');
+
+  const brechas = Object.values(STATE.brechas||{});
+  const brechasFilas = brechas.length ? brechas.map(b=>{
+    const cl = clasificarCriticidad(b.criticidad);
+    return `<tr><td>#${String(b.preguntaId).padStart(3,'0')}</td><td>${escapeHtml(b.descripcion)}</td><td>${cl?cl.label:'—'}</td><td>${cl?cl.p:'—'}</td></tr>`;
+  }).join('') : '<tr><td colspan="4">Sin brechas formalizadas todavía.</td></tr>';
+
+  const totalEvidencias = Object.keys(STATE.evidencias||{}).length;
+  const totalAmbulancias = Object.keys(STATE.ambulancias||{}).length;
+  const totalPuntos = Object.keys(STATE.puntos||{}).length;
+  const totalSismo = Object.keys(STATE.sismo||{}).length;
+  const prestGeo = prestadoresConGeo();
+  const prestadoresFilas = prestGeo.length ? prestGeo.map(p=>
+    `<tr><td>${escapeHtml(p.nombre)}</td><td>${escapeHtml(p.municipio)}</td><td>${escapeHtml(p.direccion||'—')}</td><td>${escapeHtml(p.telefono||'—')}</td><td>${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</td><td>${p.fuente}</td></tr>`
+  ).join('') : '<tr><td colspan="6">Sin prestadores georreferenciados todavía.</td></tr>';
+
+  const dimList = DIMENSIONES.map(d=>{
+    const s = stats.porDim[d.n];
+    return {nombre:d.nombre, mad: s.conMadurez ? s.sumaMadurez/s.conMadurez : null};
+  }).filter(d=>d.mad!=null).sort((a,b)=>b.mad-a.mad);
+  const masFuerte = dimList[0] ? dimList[0].nombre : '—';
+  const masDebil = dimList.length ? dimList[dimList.length-1].nombre : '—';
+
+  return `
+  <div class="informe-doc">
+    <h2>Línea Base CRUE–SEM–CRED Chocó 2026 — Informe de Diagnóstico</h2>
+    <p><strong>Institución:</strong> ${escapeHtml(c.institucion||'—')} · <strong>Municipio:</strong> ${escapeHtml(c.municipio||'—')} · <strong>Dependencia:</strong> ${escapeHtml(c.dependencia||'—')} · <strong>Responsable:</strong> ${escapeHtml(c.responsable||'—')}</p>
+    <p><strong>Fecha del informe:</strong> ${new Date().toLocaleDateString()}</p>
+
+    <h3>1. Resumen ejecutivo</h3>
+    <p>Madurez territorial promedio: <strong>${madurezProm} / 5</strong>. Avance del levantamiento: <strong>${Math.round((stats.respondidas/stats.total)*100)}%</strong> (${stats.respondidas} de ${stats.total} preguntas). Dimensión más fuerte: <strong>${escapeHtml(masFuerte)}</strong>. Dimensión más débil: <strong>${escapeHtml(masDebil)}</strong>.</p>
+
+    <h3>2. Metodología</h3>
+    <p>Instrumento de 180 preguntas en 12 dimensiones, con escala de estado (Verificado/Documental/Por verificar/Hipótesis de brecha/No aplica) y madurez (0 Inexistente a 5 Optimizado). Criticidad calculada automáticamente como Impacto × Probabilidad.</p>
+
+    <h3>3. Alcance</h3>
+    <p>${escapeHtml(c.institucion||'Institución no especificada')} en ${escapeHtml(c.municipio||'municipio no especificado')}, Chocó.</p>
+
+    <h3>4. Resultados por dimensión</h3>
+    <table><tr><th>#</th><th>Dimensión</th><th>Avance</th><th>Madurez</th></tr>${dimFilas}</table>
+
+    <h3>5. Evidencias, brechas y prioridades</h3>
+    <p>${totalEvidencias} evidencias registradas. ${brechas.length} brechas formalizadas — ${stats.critCount.CRITICA} de criticidad crítica y ${stats.critCount.ALTA} de criticidad alta detectadas en el levantamiento.</p>
+    <table><tr><th>Pregunta</th><th>Descripción</th><th>Criticidad</th><th>Prioridad</th></tr>${brechasFilas}</table>
+
+    <h3>6. CRUE, SEM, CRED</h3>
+    <p>Ambulancias registradas: ${totalAmbulancias}. Entradas de reconstrucción del sismo: ${totalSismo}. Puntos georreferenciados en el mapa territorial: ${totalPuntos}.</p>
+
+    <h3>7. Compilado de localización de prestadores</h3>
+    <p>${prestGeo.length} prestador(es) con ubicación registrada en el mapa territorial, de un catálogo total de ${Object.keys(STATE.prestadores||{}).length}.</p>
+    <table><tr><th>Nombre</th><th>Municipio</th><th>Dirección</th><th>Teléfono</th><th>Coordenadas</th><th>Fuente</th></tr>${prestadoresFilas}</table>
+
+    <h3>8. Hallazgos</h3>
+    <p>Ver sección de brechas formalizadas arriba, y el módulo Analítica para el detalle completo por dimensión.</p>
+
+    <h3>9. Recomendaciones y próximos pasos</h3>
+    <p>Revisar en la pestaña "Brechas y priorización" las acciones registradas con responsable y fecha límite. Priorizar intervención en la dimensión "${escapeHtml(masDebil)}" y las brechas de prioridad P1.</p>
+  </div>`;
+}
+
+document.getElementById('btn-print-informe').addEventListener('click', ()=>{ window.print(); });
+document.getElementById('btn-download-informe').addEventListener('click', ()=>{
+  const doc = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Informe CRUE-SEM-CRED Choco 2026</title>
+  <style>body{font-family:sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#111}
+  h2{border-bottom:1px solid #ccc;padding-bottom:.4rem} h3{color:#0f766e}
+  table{width:100%;border-collapse:collapse;margin:.6rem 0} th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;font-size:0.9rem}</style>
+  </head><body>${generarInforme()}</body></html>`;
+  downloadFile('informe_diagnostico_' + fileSlug() + '.html', doc, 'text/html');
+});
+
+/* ---------------- EXPORTAR ---------------- */
+document.getElementById('btn-export-json').addEventListener('click', ()=>{
+  downloadFile('matriz_choco_2026_' + fileSlug() + '.json', JSON.stringify(STATE, null, 2), 'application/json');
+});
+document.getElementById('btn-export-csv').addEventListener('click', ()=>{
+  const rows = [['id','dimension','pregunta','estado','madurez','impacto','probabilidad','criticidad','prioridad','fuente','metodoVerificacion','brechaHallazgo','accionRecomendacion','observacion']];
+  PREGUNTAS.forEach(q=>{
+    const r = getResp(q.id);
+    const cl = r.criticidad!=null ? clasificarCriticidad(r.criticidad) : null;
+    rows.push([q.id, q.d, q.t, r.estado||'', r.madurez??'', r.impacto??'', r.probabilidad??'', r.criticidad??'', cl?cl.p:'', r.fuente||'', r.metodoVerificacion||'', r.brechaHallazgo||'', r.accionRecomendacion||'', r.observacion||'']);
+  });
+  const csv = rows.map(r=> r.map(csvEscape).join(',')).join('\n');
+  downloadFile('matriz_choco_2026_' + fileSlug() + '.csv', csv, 'text/csv');
+});
+document.getElementById('btn-reset').addEventListener('click', ()=>{
+  if(confirm('Esto borrará todas las respuestas guardadas en este navegador. ¿Continuar?')){
+    localStorage.removeItem(STORE_KEY);
+    STATE = loadState();
+    renderAll();
+  }
+});
+function fileSlug(){
+  const c = STATE.contexto;
+  return (c.institucion||'sin-institucion').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,30);
+}
+function csvEscape(v){
+  const s = String(v==null?'':v);
+  if(/[",\n]/.test(s)) return '"'+s.replace(/"/g,'""')+'"';
+  return s;
+}
+function downloadFile(name, content, mime){
+  const blob = new Blob([content], {type:mime+';charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ---------------- utils ---------------- */
+function fmtFechaHora(ts){
+  if(!ts) return '';
+  return new Date(ts).toLocaleString('es-CO', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+}
+function escapeHtml(s){
+  if(s==null) return '';
+  return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+function escAttr(s){ return escapeHtml(s); }
+
+/* ---------------- MAIN RENDER ---------------- */
+function renderAll(){
+  const stats = computeStats();
+  renderInicio(stats);
+  renderDimGrid(stats);
+  if(currentDim) renderQuestions(currentDim);
+  renderDashboard(stats);
+  renderIndicadores();
+  renderBrechas(stats);
+  renderAnalitica(stats);
+  renderModulo(3,'crue');
+  renderModulo(4,'sem');
+  renderModulo(5,'cred');
+  renderAmbulancias();
+  renderSismo();
+  renderReps();
+  document.getElementById('informe-contenido').innerHTML = generarInforme();
+  renderCtxFooter();
+}
+
+document.getElementById('cfg-url').value = CFG.url || '';
+document.getElementById('cfg-key').value = CFG.key || '';
+updateAuthUI();
+updateSyncStatus();
+if(syncEnabled() && navigator.onLine) syncNow();
+
+renderAll();
+
+/* ---------------- RELOJ EN VIVO (Inicio) ---------------- */
+function actualizarReloj(){
+  const el = document.getElementById('reloj-actual');
+  if(!el) return;
+  const ahora = new Date();
+  const fecha = ahora.toLocaleDateString('es-CO', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  const hora = ahora.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  el.textContent = fecha.charAt(0).toUpperCase() + fecha.slice(1) + ' · ' + hora;
+}
+actualizarReloj();
+setInterval(actualizarReloj, 1000);
+</script>
+</body>
+</html>
