@@ -229,12 +229,14 @@
 
     <div class="panel" style="margin-bottom:1.5rem;">
       <h4>CONTEXTO DEL LEVANTAMIENTO</h4>
-      <p style="font-size:0.75rem;color:var(--ink-dim);margin-bottom:0.8rem;">Departamento, municipio e institución son listas cerradas — no se pueden escribir mal. Solo Dependencia y Responsable son texto libre.</p>
+      <p style="font-size:0.75rem;color:var(--ink-dim);margin-bottom:0.8rem;">Departamento, municipio e institución son listas cerradas — no se pueden escribir mal. Una institución puede tener varias sedes: el levantamiento se registra por sede, no solo por institución. Solo Dependencia y Responsable son texto libre.</p>
       <div class="ctxbar">
         <div><label class="small">DEPARTAMENTO</label><select id="ctx-departamento"><option value="Chocó">Chocó</option></select></div>
         <div><label class="small">MUNICIPIO</label><select id="ctx-municipio"><option value="">— Selecciona —</option></select></div>
         <div><label class="small">INSTITUCIÓN</label><select id="ctx-institucion"><option value="">— Selecciona —</option></select></div>
         <div id="ctx-institucion-otra-wrap" style="display:none;"><label class="small">NOMBRE DE LA INSTITUCIÓN</label><input id="ctx-institucion-otra" placeholder="Escribe el nombre exacto"></div>
+        <div><label class="small">SEDE</label><select id="ctx-sede"><option value="">— Selecciona una institución primero —</option></select></div>
+        <div id="ctx-sede-nueva-wrap" style="display:none;"><label class="small">NOMBRE DE LA NUEVA SEDE</label><input id="ctx-sede-nueva" placeholder="Ej. Sede principal, Puesto de salud vereda X"></div>
         <div><label class="small">DEPENDENCIA</label><input id="ctx-dependencia" placeholder="Ej. Regulación médica"></div>
         <div><label class="small">RESPONSABLE</label><input id="ctx-responsable" placeholder="Nombre del responsable"></div>
       </div>
@@ -312,6 +314,20 @@
         <tr><td>10 – 16</td><td style="color:var(--naranja)">Alta</td><td>P2</td></tr>
         <tr><td>17 – 25</td><td style="color:var(--rojo)">Crítica</td><td>P1</td></tr>
       </table>
+    </div>
+
+    <div class="panel" style="margin-top:1rem;">
+      <h4>MARCO NORMATIVO</h4>
+      <p style="font-size:0.8rem;color:var(--ink-dim);margin-bottom:0.8rem;">
+        Regla del proyecto: una norma <strong>vigente</strong> ya es exigible; un <strong>proyecto normativo</strong> (aún no aprobado) es solo un referente prospectivo. Nunca deben tratarse igual.
+      </p>
+      <div id="normas-lista"></div>
+      <div class="qgrid two" style="margin-top:0.8rem;">
+        <input id="norma-nombre" placeholder="Nombre / artículo de la norma">
+        <select id="norma-estado"><option value="VIGENTE">Vigente</option><option value="PROYECTO_NORMATIVO">Proyecto normativo (no aprobado)</option></select>
+        <input id="norma-fuente" placeholder="Fuente (ej. Resolución, Decreto, versión/fecha)">
+        <button class="btn ghost small-btn" id="btn-add-norma">+ Agregar norma</button>
+      </div>
     </div>
   </section>
 
@@ -489,7 +505,24 @@
     <div class="grid-kpi" id="kpi-comparativo" style="margin-bottom:1.2rem;"></div>
 
     <div class="panel" style="margin-bottom:1.2rem;">
+      <h4>MADUREZ PROMEDIO POR REGIÓN (Atrato, San Juan, Baudó, Pacífico, Darién)</h4>
+      <div id="chart-comparativo-region"></div>
+    </div>
+
+    <div class="panel" style="margin-bottom:1.2rem;">
       <h4>TODOS LOS LEVANTAMIENTOS</h4>
+      <div class="qgrid two" style="margin-bottom:0.8rem;">
+        <div><label class="small">FILTRAR POR REGIÓN</label>
+          <select id="comp-filtro-region">
+            <option value="">Todas</option>
+            <option value="Atrato">Atrato</option>
+            <option value="San Juan">San Juan</option>
+            <option value="Baudó">Baudó</option>
+            <option value="Pacífico">Pacífico</option>
+            <option value="Darién">Darién</option>
+          </select>
+        </div>
+      </div>
       <div style="overflow-x:auto;">
         <table class="informe-doc" style="width:100%;" id="tabla-comparativo"></table>
       </div>
@@ -604,6 +637,10 @@
         Inicia sesión para que tus cambios queden identificados con tu correo y tu rol determine qué puedes hacer.
         Sin sesión, la app sigue funcionando localmente, pero no podrás sincronizar (la base de datos ahora exige usuario autenticado, ya no la anon key sola).
       </p>
+      <p style="font-size:0.8rem;color:var(--amarillo);margin-bottom:1rem;">
+        ⚠ Si eres del equipo (no el administrador): tu cuenta ya debería haber sido creada por el Administrador desde el panel de Supabase.
+        Usa <strong>"Iniciar sesión"</strong> con el correo y contraseña que te dieron — <strong>no</strong> "Crear cuenta". El administrador ajusta tu rol después desde su panel.
+      </p>
       <div id="auth-logged-out">
         <div class="qgrid two">
           <div><label class="small">CORREO</label><input id="auth-email" type="email" placeholder="nombre@institucion.gov.co"></div>
@@ -685,6 +722,28 @@ const PROBABILIDAD_ESCALA = [
   {v:5, n:'5 · Casi seguro', d:'Ocurre de forma constante o es prácticamente inevitable sin intervención.'},
 ];
 
+// ============================================================
+// MARCO NORMATIVO — regla crítica del proyecto: un PROYECTO NORMATIVO
+// (aún no aprobado) NUNCA debe registrarse ni citarse como NORMA VIGENTE.
+// El proyecto de Resolución SEM–CRUE–CRED (jul-2026) viene preseñalado y
+// bloqueado en ese estado — nadie puede cambiarlo a "vigente" desde la app.
+// ============================================================
+const COBERTURA_NORMATIVA = ['CUBRE','CUBRE_PARCIALMENTE','NO_CUBRE','NO_APLICA'];
+const COBERTURA_LABEL = {CUBRE:'Cubre', CUBRE_PARCIALMENTE:'Cubre parcialmente', NO_CUBRE:'No cubre', NO_APLICA:'No aplica'};
+function normaId_bloqueada(){ return 'norma-proyecto-resolucion-jul-2026'; }
+function sembrarNormaCritica(){
+  STATE.normas = STATE.normas || {};
+  const id = normaId_bloqueada();
+  if(!STATE.normas[id]){
+    STATE.normas[id] = {
+      nombre: 'Proyecto de Resolución SEM–CRUE–CRED', articulo: '—',
+      estado: 'PROYECTO_NORMATIVO', fuente: 'Versión 24 de julio de 2026',
+      notas: 'Referente prospectivo. NO es norma vigente — no debe citarse como obligación exigible.',
+      bloqueada: true, updatedAt: Date.now(), syncStatus: 'pending',
+    };
+  }
+}
+
 const STORE_KEY = 'crue_sem_cred_choco_2026_v1';
 const CFG_KEY = 'crue_sem_cred_choco_2026_cfg';
 
@@ -711,6 +770,8 @@ function loadState(){
     sismo:{},
     puntos:{},
     prestadores:{},
+    sedes:{},
+    normas:{},
     deviceId: uuid(),
   };
 }
@@ -724,6 +785,9 @@ if(!STATE.ambulancias) STATE.ambulancias = {};
 if(!STATE.sismo) STATE.sismo = {};
 if(!STATE.puntos) STATE.puntos = {};
 if(!STATE.prestadores) STATE.prestadores = {};
+if(!STATE.sedes) STATE.sedes = {};
+if(!STATE.normas) STATE.normas = {};
+sembrarNormaCritica();
 delete STATE.levantamientoId; // versión anterior guardaba un id aleatorio por equipo; ya no se usa
 
 // El ID del levantamiento se calcula del CONTEXTO (institución+municipio+dependencia),
@@ -739,7 +803,10 @@ function slugify(s){
 function levantamientoId(){
   const c = STATE.contexto;
   if(!c.institucion && !c.municipio) return null;
-  return [slugify(c.institucion), slugify(c.municipio), slugify(c.dependencia)].join('__');
+  // Incluye la SEDE en la identidad del levantamiento: dos sedes de la misma
+  // institución son dos levantamientos distintos (una institución puede tener
+  // varias sedes — nunca se asume institución = sede).
+  return [slugify(c.institucion), slugify(c.municipio), slugify(c.sede), slugify(c.dependencia)].join('__');
 }
 
 function loadCfg(){
@@ -864,6 +931,7 @@ async function syncNow(){
         id: levId,
         device_id: STATE.deviceId,
         institucion: STATE.contexto.institucion,
+        sede: STATE.contexto.sede || null,
         municipio: STATE.contexto.municipio,
         dependencia: STATE.contexto.dependencia,
         responsable: STATE.contexto.responsable,
@@ -884,6 +952,8 @@ async function syncNow(){
         criticidad: r.criticidad ?? null,
         linea_base: r.lineaBase || null,
         respuesta_rapida: r.respuestaRapida || null,
+        norma_id: r.normaId || null,
+        cobertura: r.cobertura || null,
         fuente: r.fuente || null,
         metodo_verificacion: r.metodoVerificacion || null,
         brecha_hallazgo: r.brechaHallazgo || null,
@@ -1034,6 +1104,34 @@ async function syncNow(){
       if(res.ok) prPendientes.forEach(([id])=>{ STATE.prestadores[id].syncStatus = 'synced'; });
     }
 
+    // 2j) Subir sedes pendientes — catálogo compartido de TODO Chocó, igual que prestadores.
+    // Una institución puede tener varias sedes (nunca institución = sede).
+    const sedPendientes = Object.entries(STATE.sedes||{}).filter(([,s])=>s.syncStatus==='pending');
+    if(sedPendientes.length){
+      const payload = sedPendientes.map(([id,s])=>({
+        id, institucion: s.institucion, nombre: s.nombre, municipio: s.municipio||null,
+        direccion: s.direccion||null, telefono: s.telefono||null, lat: s.lat??null, lng: s.lng??null,
+        actualizado_en: new Date(s.updatedAt||Date.now()).toISOString(),
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/sedes?on_conflict=id', {
+        method:'POST', headers: Object.assign({}, headers, {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify(payload),
+      });
+      if(res.ok) sedPendientes.forEach(([id])=>{ STATE.sedes[id].syncStatus = 'synced'; });
+    }
+
+    // 2k) Subir normas pendientes — catálogo compartido de TODO Chocó, igual que sedes/prestadores.
+    const normPendientes = Object.entries(STATE.normas||{}).filter(([,n])=>n.syncStatus==='pending');
+    if(normPendientes.length){
+      const payload = normPendientes.map(([id,n])=>({
+        id, nombre: n.nombre, estado: n.estado, fuente: n.fuente||null, notas: n.notas||null,
+        bloqueada: !!n.bloqueada, actualizado_en: new Date(n.updatedAt||Date.now()).toISOString(),
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/normas?on_conflict=id', {
+        method:'POST', headers: Object.assign({}, headers, {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify(payload),
+      });
+      if(res.ok) normPendientes.forEach(([id])=>{ STATE.normas[id].syncStatus = 'synced'; });
+    }
+
     // 3) Traer respuestas de OTROS equipos para el mismo levantamiento (last-write-wins por fecha)
     const pull = await fetch(CFG.url + '/rest/v1/respuestas?levantamiento_id=eq.' + encodeURIComponent(levId), { headers });
     if(pull.ok){
@@ -1045,6 +1143,7 @@ async function syncNow(){
           STATE.respuestas[rr.pregunta_id] = {
             estado: rr.estado, madurez: rr.madurez, impacto: rr.impacto, probabilidad: rr.probabilidad,
             criticidad: rr.criticidad, lineaBase: rr.linea_base, respuestaRapida: rr.respuesta_rapida,
+            normaId: rr.norma_id, cobertura: rr.cobertura,
             fuente: rr.fuente, metodoVerificacion: rr.metodo_verificacion,
             brechaHallazgo: rr.brecha_hallazgo, accionRecomendacion: rr.accion_recomendacion,
             observacion: rr.observacion, updatedAt: remotaFecha, syncStatus: 'synced',
@@ -1163,6 +1262,34 @@ async function syncNow(){
       });
     }
 
+    // 3g) Traer el catálogo completo de sedes (compartido para todo Chocó)
+    const pullSed = await fetch(CFG.url + '/rest/v1/sedes', { headers });
+    if(pullSed.ok){
+      const remSed = await pullSed.json();
+      STATE.sedes = STATE.sedes || {};
+      remSed.forEach(rs=>{
+        const local = STATE.sedes[rs.id];
+        const remotaFecha = new Date(rs.actualizado_en).getTime();
+        if(!local || remotaFecha > (local.updatedAt||0)){
+          STATE.sedes[rs.id] = { institucion: rs.institucion, nombre: rs.nombre, municipio: rs.municipio, direccion: rs.direccion, telefono: rs.telefono, lat: rs.lat, lng: rs.lng, updatedAt: remotaFecha, syncStatus:'synced' };
+        }
+      });
+    }
+
+    // 3h) Traer el catálogo completo de normas (compartido para todo Chocó)
+    const pullNorm = await fetch(CFG.url + '/rest/v1/normas', { headers });
+    if(pullNorm.ok){
+      const remNorm = await pullNorm.json();
+      STATE.normas = STATE.normas || {};
+      remNorm.forEach(rn=>{
+        const local = STATE.normas[rn.id];
+        const remotaFecha = new Date(rn.actualizado_en).getTime();
+        if(!local || remotaFecha > (local.updatedAt||0)){
+          STATE.normas[rn.id] = { nombre: rn.nombre, estado: rn.estado, fuente: rn.fuente, notas: rn.notas, bloqueada: rn.bloqueada, updatedAt: remotaFecha, syncStatus:'synced' };
+        }
+      });
+    }
+
     localStorage.setItem(STORE_KEY, JSON.stringify(STATE));
     updateSyncStatus('Última sincronización: ' + new Date().toLocaleTimeString());
     if(currentDim) renderQuestions(currentDim);
@@ -1210,11 +1337,17 @@ async function fetchRole(userId, accessToken){
   return rows[0] || null;
 }
 
-async function ensureRole(userId, accessToken, email){
+async function ensureRole(userId, accessToken, email, kind){
   let row = await fetchRole(userId, accessToken);
   if(!row){
-    const rol = document.getElementById('auth-rol').value;
-    const institucion = document.getElementById('auth-institucion').value.trim();
+    // El rol elegido en el formulario SOLO es válido cuando de verdad se está
+    // creando una cuenta nueva (kind==='signup'). Si esto se dispara durante un
+    // LOGIN (cuenta creada por el Administrador desde Supabase, primer ingreso
+    // de esa persona), el desplegable de Rol es irrelevante para ese flujo —
+    // se ignora a propósito y se asigna el rol mínimo por defecto, para que
+    // nadie obtenga un rol mayor solo por dejar el selector en cierta posición.
+    const rol = kind === 'signup' ? document.getElementById('auth-rol').value : 'EVALUADOR';
+    const institucion = kind === 'signup' ? document.getElementById('auth-institucion').value.trim() : '';
     await fetch(CFG.url + '/rest/v1/usuarios_roles', {
       method:'POST',
       headers: { 'apikey': CFG.key, 'Authorization':'Bearer '+accessToken, 'Content-Type':'application/json', 'Prefer':'return=representation' },
@@ -1240,7 +1373,7 @@ async function doAuth(kind){
     const data = await res.json();
     if(!res.ok){ authMsg(data.error_description || data.msg || data.error || 'No se pudo autenticar.', true); return; }
     if(!data.access_token){ authMsg('Cuenta creada. Revisa tu correo si Supabase pide confirmación, luego inicia sesión.', false); return; }
-    const roleRow = await ensureRole(data.user.id, data.access_token, email);
+    const roleRow = await ensureRole(data.user.id, data.access_token, email, kind);
     SESSION = {
       access_token: data.access_token, refresh_token: data.refresh_token,
       expires_at: Date.now() + (data.expires_in||3600)*1000,
@@ -1321,8 +1454,23 @@ const MUNICIPIOS_CHOCO = [
   'Cantón de San Pablo','Cértegui','Condoto','El Carmen de Atrato','El Carmen del Darién',
   'Istmina','Juradó','Litoral del San Juan','Lloró','Medio Atrato','Medio Baudó',
   'Medio San Juan','Nóvita','Nuquí','Quibdó','Riosucio','Río Iró','Río Quito',
-  'San José del Palmar','Sipí','Tadó','Unguía','Unión Panamericana',
+  'San José del Palmar','Sipí','Tadó','Unguía','Unión Panamericana','Belén de Bajirá',
 ];
+// Región de cada municipio (fuente: IGAC-DANE, vía todacolombia.com/subregiones).
+// Belén de Bajirá aparece como "municipio pendiente de legalización" — se incluye
+// en Darién porque así lo reporta la fuente, pero su estatus territorial sigue en disputa.
+const REGION_POR_MUNICIPIO = {
+  'Quibdó':'Atrato', 'Atrato':'Atrato', 'Bagadó':'Atrato', 'Bojayá':'Atrato',
+  'El Carmen de Atrato':'Atrato', 'Lloró':'Atrato', 'Medio Atrato':'Atrato', 'Río Quito':'Atrato',
+  'Acandí':'Darién', 'El Carmen del Darién':'Darién', 'Riosucio':'Darién', 'Unguía':'Darién',
+  'Belén de Bajirá':'Darién',
+  'Bahía Solano':'Pacífico', 'Juradó':'Pacífico', 'Nuquí':'Pacífico',
+  'Alto Baudó':'Baudó', 'Bajo Baudó':'Baudó', 'Litoral del San Juan':'Baudó', 'Medio Baudó':'Baudó',
+  'Cértegui':'San Juan', 'Condoto':'San Juan', 'Cantón de San Pablo':'San Juan', 'Istmina':'San Juan',
+  'Medio San Juan':'San Juan', 'Nóvita':'San Juan', 'Río Iró':'San Juan', 'San José del Palmar':'San Juan',
+  'Sipí':'San Juan', 'Tadó':'San Juan', 'Unión Panamericana':'San Juan',
+};
+function regionDe(municipio){ return REGION_POR_MUNICIPIO[municipio] || ''; }
 const INSTITUCIONES_CHOCO = [
   'Secretaría de Salud Departamental del Chocó',
   'CRUE Chocó',
@@ -1331,6 +1479,7 @@ const INSTITUCIONES_CHOCO = [
   'ESE Hospital Departamental San Francisco de Asís',
 ];
 const OTRA_INSTITUCION = '__OTRA__';
+const NUEVA_SEDE = '__NUEVA__';
 
 function poblarInstitucionSelect(municipioActual){
   const selInst = document.getElementById('ctx-institucion');
@@ -1348,6 +1497,40 @@ function poblarInstitucionSelect(municipioActual){
   selInst.innerHTML = html;
   // conservar la selección si sigue existiendo entre las opciones nuevas
   if([...selInst.options].some(o=>o.value===valorPrevio)) selInst.value = valorPrevio;
+}
+
+// ---- SEDES: una institución puede tener varias. Nunca institución = sede. ----
+function sedesDe(institucion){
+  return Object.entries(STATE.sedes||{})
+    .filter(([,s])=> s.institucion === institucion)
+    .map(([id,s])=>Object.assign({id},s))
+    .sort((a,b)=> a.nombre.localeCompare(b.nombre));
+}
+function poblarSedeSelect(institucionActual, preseleccion){
+  const selSede = document.getElementById('ctx-sede');
+  if(!institucionActual){
+    selSede.innerHTML = '<option value="">— Selecciona una institución primero —</option>';
+    return;
+  }
+  const sedes = sedesDe(institucionActual);
+  let html = '<option value="">— Selecciona —</option>' +
+    sedes.map(s=>`<option value="${escAttr(s.nombre)}">${escapeHtml(s.nombre)}</option>`).join('') +
+    `<option value="${NUEVA_SEDE}">+ Registrar nueva sede</option>`;
+  selSede.innerHTML = html;
+  if(preseleccion && [...selSede.options].some(o=>o.value===preseleccion)) selSede.value = preseleccion;
+}
+function registrarSedeSiNueva(institucion, nombreSede){
+  if(!institucion || !nombreSede) return;
+  const yaExiste = sedesDe(institucion).some(s=> s.nombre === nombreSede);
+  if(yaExiste) return;
+  STATE.sedes = STATE.sedes || {};
+  const id = uuid();
+  STATE.sedes[id] = {
+    institucion, nombre: nombreSede, municipio: STATE.contexto.municipio || '',
+    direccion:'', telefono:'', lat:null, lng:null,
+    updatedAt: Date.now(), syncStatus:'pending',
+  };
+  saveState(); scheduleAutoSync();
 }
 
 (function initSelectsContexto(){
@@ -1382,6 +1565,8 @@ function aplicarContextoGuardado(){
   } else {
     selInst.value = ''; wrap.style.display = 'none'; otraInput.value = '';
   }
+  poblarSedeSelect(c.institucion, c.sede);
+  document.getElementById('ctx-sede-nueva-wrap').style.display = 'none';
 }
 aplicarContextoGuardado();
 
@@ -1394,6 +1579,11 @@ function guardarContexto(){
   STATE.contexto.institucion = selInst === OTRA_INSTITUCION
     ? document.getElementById('ctx-institucion-otra').value.trim()
     : selInst;
+  const selSede = document.getElementById('ctx-sede').value;
+  STATE.contexto.sede = selSede === NUEVA_SEDE
+    ? document.getElementById('ctx-sede-nueva').value.trim()
+    : selSede;
+  if(STATE.contexto.sede) registrarSedeSiNueva(STATE.contexto.institucion, STATE.contexto.sede);
   saveState();
   renderCtxFooter();
   if(syncEnabled()) scheduleAutoSync();
@@ -1409,12 +1599,22 @@ document.getElementById('ctx-institucion-otra').addEventListener('input', guarda
 document.getElementById('ctx-institucion').addEventListener('change', ()=>{
   const esOtra = document.getElementById('ctx-institucion').value === OTRA_INSTITUCION;
   document.getElementById('ctx-institucion-otra-wrap').style.display = esOtra ? 'block' : 'none';
+  // cambiar de institución invalida la sede elegida — nunca se asume institución = sede
+  const institucionEfectiva = esOtra ? document.getElementById('ctx-institucion-otra').value.trim() : document.getElementById('ctx-institucion').value;
+  poblarSedeSelect(institucionEfectiva, '');
+  document.getElementById('ctx-sede-nueva-wrap').style.display = 'none';
   guardarContexto();
 });
+document.getElementById('ctx-sede').addEventListener('change', ()=>{
+  const esNueva = document.getElementById('ctx-sede').value === NUEVA_SEDE;
+  document.getElementById('ctx-sede-nueva-wrap').style.display = esNueva ? 'block' : 'none';
+  if(!esNueva) guardarContexto();
+});
+document.getElementById('ctx-sede-nueva').addEventListener('change', guardarContexto);
 
 function renderCtxFooter(){
   const c = STATE.contexto;
-  const parts = [c.institucion, c.municipio].filter(Boolean);
+  const parts = [c.institucion, c.sede, c.municipio].filter(Boolean);
   document.getElementById('ctxfooter').textContent = parts.length ? parts.join(' · ') : 'Sin contexto activo';
   document.getElementById('pill-lev').textContent = parts.length ? parts.join(' · ') : 'Sin contexto';
 }
@@ -1605,6 +1805,14 @@ function questionForm(q, r){
       <div><label class="small">FUENTE / DOCUMENTO</label><input ${ro} data-field="fuente" data-id="${q.id}" value="${escAttr(r.fuente)}"></div>
       <div><label class="small">MÉTODO DE VERIFICACIÓN</label><input ${ro} data-field="metodoVerificacion" data-id="${q.id}" value="${escAttr(r.metodoVerificacion)}"></div>
     </div>
+    <div class="qgrid two" style="margin-top:0.9rem;padding-top:0.9rem;border-top:1px dashed var(--line);">
+      <div><label class="small">NORMA RELACIONADA (opcional)</label><select ${ro} data-field="normaId" data-id="${q.id}">${normaOptsPara(r.normaId)}</select>
+        <p class="escala-def" id="normabadge-${q.id}">${normaBadge(r.normaId)}</p>
+      </div>
+      <div><label class="small">COBERTURA NORMATIVA</label><select ${ro} data-field="cobertura" data-id="${q.id}">
+        <option value="">—</option>${COBERTURA_NORMATIVA.map(c=>`<option value="${c}" ${r.cobertura===c?'selected':''}>${COBERTURA_LABEL[c]}</option>`).join('')}
+      </select></div>
+    </div>
     <div class="qgrid two">
       <div class="qfull"><label class="small">BRECHA / HALLAZGO</label><textarea ${ro} data-field="brechaHallazgo" data-id="${q.id}">${escapeHtml(r.brechaHallazgo||'')}</textarea></div>
       <div class="qfull"><label class="small">ACCIÓN / RECOMENDACIÓN</label><textarea ${ro} data-field="accionRecomendacion" data-id="${q.id}">${escapeHtml(r.accionRecomendacion||'')}</textarea></div>
@@ -1613,6 +1821,20 @@ function questionForm(q, r){
     <div id="crit-${q.id}">${cl ? `<span class="crit-tag" style="background:rgba(255,255,255,0.05);color:${cl.color};border:1px solid ${cl.color}">Criticidad ${r.criticidad} — ${cl.label} (${cl.p})</span>` : ''}</div>
     ${evidenceSection(q.id)}
   `;
+}
+
+function normaOptsPara(normaIdActual){
+  const normas = Object.entries(STATE.normas||{}).map(([id,n])=>Object.assign({id},n));
+  return '<option value="">—</option>' + normas.map(n=>
+    `<option value="${n.id}" ${normaIdActual===n.id?'selected':''}>${escapeHtml(n.nombre)} ${n.estado==='PROYECTO_NORMATIVO'?'(proyecto)':'(vigente)'}</option>`
+  ).join('');
+}
+function normaBadge(normaId){
+  if(!normaId || !STATE.normas || !STATE.normas[normaId]) return '';
+  const n = STATE.normas[normaId];
+  return n.estado==='PROYECTO_NORMATIVO'
+    ? `<span style="color:var(--naranja);">⚠ PROYECTO NORMATIVO — ${escapeHtml(n.fuente||'')} — no es exigible todavía</span>`
+    : `<span style="color:var(--verde);">✓ NORMA VIGENTE — ${escapeHtml(n.fuente||'')}</span>`;
 }
 
 function evidenceSection(preguntaId){
@@ -1690,6 +1912,10 @@ function bindQuestionForm(id){
         const d = document.getElementById('probdef-'+id);
         const def = PROBABILIDAD_ESCALA.find(i=>i.v===Number(r.probabilidad));
         if(d) d.textContent = def ? def.d : '';
+      }
+      if(field==='normaId'){
+        const b = document.getElementById('normabadge-'+id);
+        if(b) b.innerHTML = normaBadge(r.normaId);
       }
       // actualizar la fecha/hora de registro visible
       const fechaEl = document.getElementById('fecha-'+id);
@@ -1843,6 +2069,46 @@ function irADimension(n){
   document.getElementById('view-levantamiento').classList.add('active');
   openDim(n);
 }
+
+/* ---- MARCO NORMATIVO: vigente vs. proyecto normativo ---- */
+function renderNormas(){
+  const el = document.getElementById('normas-lista');
+  if(!el) return;
+  const normas = Object.entries(STATE.normas||{}).map(([id,n])=>Object.assign({id},n))
+    .sort((a,b)=> (a.bloqueada?-1:1) - (b.bloqueada?-1:1));
+  el.innerHTML = normas.map(n=>{
+    const color = n.estado==='PROYECTO_NORMATIVO' ? 'var(--naranja)' : 'var(--verde)';
+    const label = n.estado==='PROYECTO_NORMATIVO' ? 'PROYECTO NORMATIVO — no exigible' : 'VIGENTE';
+    return `<div class="evidencia-item" style="border-left:3px solid ${color}">
+      <div class="ev-top"><strong>${escapeHtml(n.nombre)}</strong> <span style="color:${color};font-family:var(--mono);font-size:0.65rem;">${label}</span> ${n.bloqueada?'<span style="font-size:0.65rem;color:var(--ink-dim);">🔒 fija por regla del proyecto</span>':''}</div>
+      ${n.fuente?`<div class="ev-desc">${escapeHtml(n.fuente)}</div>`:''}
+      ${n.notas?`<div class="ev-desc">${escapeHtml(n.notas)}</div>`:''}
+      ${!n.bloqueada && !isReadOnly() ? `<button type="button" class="btn ghost small-btn btn-del-norma" data-id="${n.id}" style="margin-top:0.4rem;">Quitar</button>` : ''}
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.btn-del-norma').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      delete STATE.normas[btn.dataset.id];
+      saveState();
+      renderNormas();
+    });
+  });
+}
+document.getElementById('btn-add-norma').addEventListener('click', ()=>{
+  const nombre = document.getElementById('norma-nombre').value.trim();
+  if(!nombre){ alert('Ponle un nombre a la norma antes de agregarla.'); return; }
+  STATE.normas = STATE.normas || {};
+  const id = uuid();
+  STATE.normas[id] = {
+    nombre, estado: document.getElementById('norma-estado').value,
+    fuente: document.getElementById('norma-fuente').value.trim(),
+    notas:'', bloqueada:false, updatedAt: Date.now(), syncStatus:'pending',
+  };
+  saveState(); scheduleAutoSync();
+  document.getElementById('norma-nombre').value = '';
+  document.getElementById('norma-fuente').value = '';
+  renderNormas();
+});
 
 /* ---- SEM: registro de ambulancias ---- */
 function renderAmbulancias(){
@@ -2476,14 +2742,31 @@ function renderComparativo(){
     ${kpi(totalCriticas, 'Brechas críticas (todo Chocó)', totalCriticas>0?'crit':'')}
   `;
 
+  // Madurez promedio agrupada por región (Atrato/San Juan/Baudó/Pacífico/Darién)
+  const REGIONES = ['Atrato','San Juan','Baudó','Pacífico','Darién'];
+  const porRegion = {}; REGIONES.forEach(r=> porRegion[r] = {suma:0, n:0});
+  levantamientos.forEach(l=>{
+    const region = regionDe(l.municipio);
+    const b = porNivel[l.id];
+    if(region && b.conMadurez){ porRegion[region].suma += b.sumaMadurez/b.conMadurez; porRegion[region].n++; }
+  });
+  const itemsRegion = REGIONES.map(r=>{
+    const v = porRegion[r].n ? porRegion[r].suma/porRegion[r].n : 0;
+    return {label:r, val:Number(v.toFixed(2)), display: porRegion[r].n ? v.toFixed(1)+' ('+porRegion[r].n+' levant.)' : 'sin datos'};
+  });
+  renderBarList('chart-comparativo-region', itemsRegion, 5, madurezColor);
+
+  const filtroRegion = document.getElementById('comp-filtro-region').value;
+  const levantamientosFiltrados = filtroRegion ? levantamientos.filter(l=> regionDe(l.municipio)===filtroRegion) : levantamientos;
+
   const tabla = document.getElementById('tabla-comparativo');
-  tabla.innerHTML = `<tr><th>Institución</th><th>Municipio</th><th>Avance</th><th>Madurez</th><th>Brechas críticas</th><th>Brechas altas</th><th>Actualizado</th></tr>` +
-    levantamientos.map(l=>{
+  tabla.innerHTML = `<tr><th>Institución</th><th>Municipio</th><th>Región</th><th>Avance</th><th>Madurez</th><th>Brechas críticas</th><th>Brechas altas</th><th>Actualizado</th></tr>` +
+    levantamientosFiltrados.map(l=>{
       const b = porNivel[l.id];
       const pct = b.total ? Math.round((b.total/180)*100) : 0; // aproximado: preguntas con al menos un campo respondido en Supabase
       const mad = b.conMadurez ? (b.sumaMadurez/b.conMadurez).toFixed(1) : '—';
       return `<tr>
-        <td>${escapeHtml(l.institucion||'—')}</td><td>${escapeHtml(l.municipio||'—')}</td>
+        <td>${escapeHtml(l.institucion||'—')}</td><td>${escapeHtml(l.municipio||'—')}</td><td>${escapeHtml(regionDe(l.municipio)||'—')}</td>
         <td>${pct}%</td><td>${mad}</td>
         <td style="color:${b.brechasCriticas>0?'var(--rojo)':'inherit'}">${b.brechasCriticas}</td>
         <td style="color:${b.brechasAltas>0?'var(--naranja)':'inherit'}">${b.brechasAltas}</td>
@@ -2497,6 +2780,7 @@ function renderComparativo(){
   selB.innerHTML = '<option value="">— ninguna —</option>' + opts;
   renderComparativoDimensiones();
 }
+document.getElementById('comp-filtro-region').addEventListener('change', renderComparativo);
 
 function renderComparativoDimensiones(){
   if(!__comparativo) return;
@@ -2676,6 +2960,7 @@ function renderAll(){
   renderAmbulancias();
   renderSismo();
   renderReps();
+  renderNormas();
   document.getElementById('informe-contenido').innerHTML = generarInforme();
   renderCtxFooter();
 }
