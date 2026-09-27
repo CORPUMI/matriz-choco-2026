@@ -446,7 +446,22 @@
           </select>
         </div>
         <div><label class="small">HORA</label><input type="time" id="sis-hora"></div>
-        <div><label class="small">ACTOR</label><input id="sis-actor" placeholder="Ej. CRUE Chocó"></div>
+        <div><label class="small">TIPO DE ACTOR</label>
+          <select id="sis-tipoactor">
+            <option value="">— Selecciona —</option>
+            <option value="CRUE">CRUE</option><option value="SEM">SEM</option><option value="CRED">CRED</option>
+            <option value="ESE">ESE</option><option value="IPS">IPS</option>
+            <option value="TRANSPORTE_ASISTENCIAL">Transporte asistencial</option>
+            <option value="NUSE_CAE">NUSE / CAE</option>
+            <option value="ORGANISMO_SOCORRO">Organismo de socorro</option>
+            <option value="GESTION_RIESGO">Gestión del riesgo</option>
+            <option value="REFERENCIA_CONTRARREFERENCIA">Referencia / Contrarreferencia</option>
+            <option value="PRIMER_RESPONDIENTE">Primer respondiente</option>
+            <option value="EMT_EME">EMT / EME</option>
+            <option value="OTRO">Otro actor concurrente</option>
+          </select>
+        </div>
+        <div><label class="small">NOMBRE DEL ACTOR (específico)</label><input id="sis-actor" placeholder="Ej. CRUE Chocó, Cruz Roja seccional Quibdó"></div>
         <div><label class="small">CANAL</label><input id="sis-canal" placeholder="Ej. Radio, WhatsApp, telefonía"></div>
         <div><label class="small">TIEMPO DE RESPUESTA</label><input id="sis-tiemporesp" placeholder="Ej. 25 min"></div>
       </div>
@@ -1063,7 +1078,7 @@ async function syncNow(){
     if(sisPendientes.length){
       const payload = sisPendientes.map(([id,e])=>({
         id, levantamiento_id: levId, evento: e.evento, fase: e.fase, hora: e.hora||null,
-        actor: e.actor||null, canal: e.canal||null, descripcion: e.descripcion||null,
+        actor: e.actor||null, tipo_actor: e.tipoActor||null, canal: e.canal||null, descripcion: e.descripcion||null,
         informacion_disponible: e.informacionDisponible||null, informacion_faltante: e.informacionFaltante||null,
         recurso_movilizado: e.recursoMovilizado||null, afectacion: e.afectacion||null,
         tiempo_respuesta: e.tiempoRespuesta||null, leccion_aprendida: e.leccionAprendida||null,
@@ -1225,7 +1240,7 @@ async function syncNow(){
       remSis.forEach(re=>{
         if(!STATE.sismo[re.id]){
           STATE.sismo[re.id] = {
-            evento: re.evento, fase: re.fase, hora: re.hora, actor: re.actor, canal: re.canal, descripcion: re.descripcion,
+            evento: re.evento, fase: re.fase, hora: re.hora, actor: re.actor, tipoActor: re.tipo_actor, canal: re.canal, descripcion: re.descripcion,
             informacionDisponible: re.informacion_disponible, informacionFaltante: re.informacion_faltante,
             recursoMovilizado: re.recurso_movilizado, afectacion: re.afectacion, tiempoRespuesta: re.tiempo_respuesta,
             leccionAprendida: re.leccion_aprendida, syncStatus:'synced',
@@ -2163,6 +2178,7 @@ document.getElementById('btn-add-sismo').addEventListener('click', ()=>{
   const id = uuid();
   STATE.sismo[id] = {
     evento, fase: document.getElementById('sis-fase').value, hora: document.getElementById('sis-hora').value,
+    tipoActor: document.getElementById('sis-tipoactor').value,
     actor: document.getElementById('sis-actor').value.trim(), canal: document.getElementById('sis-canal').value.trim(),
     descripcion: document.getElementById('sis-desc').value.trim(),
     informacionDisponible: document.getElementById('sis-infodisp').value.trim(),
@@ -2174,9 +2190,17 @@ document.getElementById('btn-add-sismo').addEventListener('click', ()=>{
     updatedAt: Date.now(), syncStatus:'pending',
   };
   saveState(); scheduleAutoSync();
-  ['sis-hora','sis-actor','sis-canal','sis-desc','sis-infodisp','sis-infofalta','sis-recurso','sis-afectacion','sis-tiemporesp','sis-leccion'].forEach(f=>document.getElementById(f).value='');
+  ['sis-hora','sis-tipoactor','sis-actor','sis-canal','sis-desc','sis-infodisp','sis-infofalta','sis-recurso','sis-afectacion','sis-tiemporesp','sis-leccion'].forEach(f=>document.getElementById(f).value='');
   renderSismo();
 });
+
+const ACTORES_TIPO_LABEL = {
+  CRUE:'CRUE', SEM:'SEM', CRED:'CRED', ESE:'ESE', IPS:'IPS',
+  TRANSPORTE_ASISTENCIAL:'Transporte asistencial', NUSE_CAE:'NUSE/CAE',
+  ORGANISMO_SOCORRO:'Organismo de socorro', GESTION_RIESGO:'Gestión del riesgo',
+  REFERENCIA_CONTRARREFERENCIA:'Referencia/Contrarreferencia', PRIMER_RESPONDIENTE:'Primer respondiente',
+  EMT_EME:'EMT/EME', OTRO:'Otro actor concurrente',
+};
 
 function renderSismo(){
   const el = document.getElementById('sismo-timeline');
@@ -2189,7 +2213,7 @@ function renderSismo(){
     return `<div style="margin-bottom:1rem;">
       <div class="navgroup-label" style="padding-left:0;">${FASES_LABEL[fase]}</div>
       ${items.map(e=>`<div class="evidencia-item" style="margin-bottom:0.4rem;">
-        <div class="ev-top"><strong>${e.hora||'sin hora'}</strong> — ${escapeHtml(e.actor||'')} ${e.canal?'· '+escapeHtml(e.canal):''}</div>
+        <div class="ev-top"><strong>${e.hora||'sin hora'}</strong> — ${e.tipoActor?`<span style="color:var(--teal);font-family:var(--mono);font-size:0.68rem;">[${ACTORES_TIPO_LABEL[e.tipoActor]||e.tipoActor}]</span> `:''}${escapeHtml(e.actor||'')} ${e.canal?'· '+escapeHtml(e.canal):''}</div>
         ${e.descripcion?`<div class="ev-desc">${escapeHtml(e.descripcion)}</div>`:''}
         ${e.recursoMovilizado?`<div class="ev-desc">Recurso: ${escapeHtml(e.recursoMovilizado)}</div>`:''}
         ${e.leccionAprendida?`<div class="ev-desc">Lección aprendida: ${escapeHtml(e.leccionAprendida)}</div>`:''}
