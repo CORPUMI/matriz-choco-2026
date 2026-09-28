@@ -383,6 +383,14 @@
       <h4>BRECHAS FORMALIZADAS</h4>
       <div id="brechas-registradas"><p style="color:var(--ink-dim);font-size:0.85rem;">Aún no has formalizado ninguna brecha.</p></div>
     </div>
+
+    <div class="panel" style="margin-top:1rem;">
+      <h4>CARTERA DE NECESIDADES</h4>
+      <p style="font-size:0.8rem;color:var(--ink-dim);margin-bottom:0.8rem;">
+        Una brecha formalizada se convierte aquí en una necesidad diagnóstica. Regla del proyecto: <strong>necesidad ≠ compra</strong> — se describe qué capacidad falta, no qué producto adquirir.
+      </p>
+      <div id="necesidades-lista"><p style="color:var(--ink-dim);font-size:0.85rem;">Aún no hay necesidades formalizadas.</p></div>
+    </div>
   </section>
 
   <!-- ================= ANALITICA ================= -->
@@ -787,6 +795,7 @@ function loadState(){
     prestadores:{},
     sedes:{},
     normas:{},
+    necesidades:{},
     deviceId: uuid(),
   };
 }
@@ -802,6 +811,7 @@ if(!STATE.puntos) STATE.puntos = {};
 if(!STATE.prestadores) STATE.prestadores = {};
 if(!STATE.sedes) STATE.sedes = {};
 if(!STATE.normas) STATE.normas = {};
+if(!STATE.necesidades) STATE.necesidades = {};
 sembrarNormaCritica();
 delete STATE.levantamientoId; // versión anterior guardaba un id aleatorio por equipo; ya no se usa
 
@@ -1147,6 +1157,20 @@ async function syncNow(){
       if(res.ok) normPendientes.forEach(([id])=>{ STATE.normas[id].syncStatus = 'synced'; });
     }
 
+    // 2l) Subir necesidades pendientes (upsert por id, igual patrón que acciones)
+    const necPendientes = Object.entries(STATE.necesidades||{}).filter(([,n])=>n.syncStatus==='pending');
+    if(necPendientes.length){
+      const payload = necPendientes.map(([id,n])=>({
+        id, brecha_id: n.brechaId, necesidad: n.necesidad, justificacion: n.justificacion||null,
+        resultado_esperado: n.resultadoEsperado||null, dependencia: n.dependencia||null,
+        producto_f1: n.productoF1||null, potencial_fase2: n.potencialFase2||null,
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/necesidades?on_conflict=id', {
+        method:'POST', headers: Object.assign({}, headers, {'Prefer':'resolution=merge-duplicates'}), body: JSON.stringify(payload),
+      });
+      if(res.ok) necPendientes.forEach(([id])=>{ STATE.necesidades[id].syncStatus = 'synced'; });
+    }
+
     // 3) Traer respuestas de OTROS equipos para el mismo levantamiento (last-write-wins por fecha)
     const pull = await fetch(CFG.url + '/rest/v1/respuestas?levantamiento_id=eq.' + encodeURIComponent(levId), { headers });
     if(pull.ok){
@@ -1216,6 +1240,22 @@ async function syncNow(){
       remAcc.forEach(ra=>{
         if(!STATE.acciones[ra.id]){
           STATE.acciones[ra.id] = { brechaId: ra.brecha_id, descripcion: ra.descripcion, responsable: ra.responsable, fechaLimite: ra.fecha_limite, estado: ra.estado, syncStatus:'synced' };
+        }
+      });
+    }
+
+    // 3c-bis) Traer necesidades de otros equipos (mismo patrón que acciones, ligadas a brechas)
+    const pullNec = await fetch(CFG.url + '/rest/v1/necesidades?brecha_id=in.(' + Object.keys(STATE.brechas||{}).map(id=>'"'+id+'"').join(',') + ')', { headers });
+    if(pullNec.ok && Object.keys(STATE.brechas||{}).length){
+      const remNec = await pullNec.json();
+      STATE.necesidades = STATE.necesidades || {};
+      remNec.forEach(rn=>{
+        if(!STATE.necesidades[rn.id]){
+          STATE.necesidades[rn.id] = {
+            brechaId: rn.brecha_id, necesidad: rn.necesidad, justificacion: rn.justificacion,
+            resultadoEsperado: rn.resultado_esperado, dependencia: rn.dependencia,
+            productoF1: rn.producto_f1, potencialFase2: rn.potencial_fase2, syncStatus:'synced',
+          };
         }
       });
     }
@@ -2331,6 +2371,40 @@ function accionesDe(brechaId){
   return Object.entries(STATE.acciones||{}).filter(([,a])=>a.brechaId===brechaId).map(([id,a])=>Object.assign({id},a));
 }
 
+/* ---- CARTERA DE NECESIDADES: brecha formalizada -> necesidad diagnóstica ---- */
+// Regla del proyecto: necesidad diagnosticada ≠ producto/solución a comprar.
+function necesidadDeBrecha(brechaId){
+  return Object.entries(STATE.necesidades||{}).find(([,n])=>n.brechaId===brechaId);
+}
+function crearNecesidad(brechaId, data){
+  STATE.necesidades = STATE.necesidades || {};
+  const id = uuid();
+  STATE.necesidades[id] = Object.assign({brechaId, updatedAt:Date.now(), syncStatus:'pending'}, data);
+  saveState(); scheduleAutoSync();
+}
+function renderNecesidades(){
+  const ro = isReadOnly();
+  const el = document.getElementById('necesidades-lista');
+  const necesidades = Object.entries(STATE.necesidades||{}).map(([id,n])=>Object.assign({id},n));
+  if(!necesidades.length){
+    el.innerHTML = '<p style="color:var(--ink-dim);font-size:0.85rem;">Aún no hay necesidades formalizadas.</p>';
+    return;
+  }
+  el.innerHTML = necesidades.map(n=>{
+    const brecha = STATE.brechas ? STATE.brechas[n.brechaId] : null;
+    const cl = brecha && brecha.criticidad!=null ? clasificarCriticidad(brecha.criticidad) : null;
+    return `<div class="finding" style="border-left-color:${cl?cl.color:'var(--gris)'};margin-bottom:0.6rem;">
+      <div class="id">Necesidad · originada en brecha de pregunta #${brecha?String(brecha.preguntaId).padStart(3,'0'):'—'} ${cl?'· '+cl.label+' ('+cl.p+')':''}</div>
+      <p><strong>Necesidad:</strong> ${escapeHtml(n.necesidad)}</p>
+      ${n.justificacion?`<p style="color:var(--ink-dim);margin-top:0.3rem;"><strong>Justificación:</strong> ${escapeHtml(n.justificacion)}</p>`:''}
+      ${n.resultadoEsperado?`<p style="color:var(--ink-dim);margin-top:0.3rem;"><strong>Resultado esperado:</strong> ${escapeHtml(n.resultadoEsperado)}</p>`:''}
+      ${n.dependencia?`<p style="color:var(--ink-dim);margin-top:0.3rem;"><strong>Dependencia:</strong> ${escapeHtml(n.dependencia)}</p>`:''}
+      ${n.productoF1?`<p style="color:var(--ink-dim);margin-top:0.3rem;"><strong>Producto F1:</strong> ${escapeHtml(n.productoF1)}</p>`:''}
+      ${n.potencialFase2?`<p style="color:var(--ink-dim);margin-top:0.3rem;font-style:italic;"><strong>Potencial relación con Fase 2 (solo referencia):</strong> ${escapeHtml(n.potencialFase2)}</p>`:''}
+    </div>`;
+  }).join('');
+}
+
 function renderBrechas(stats){
   const ro = isReadOnly();
   const candidatas = stats.findings.filter(f=> !brechaYaExiste(f.id));
@@ -2382,6 +2456,29 @@ function renderBrechas(stats){
           <button class="btn ghost small-btn btn-add-accion" data-brecha="${b.id}">+ Agregar acción</button>
         </div>` : ''}
       </div>
+      ${(()=>{
+        const nEntry = necesidadDeBrecha(b.id);
+        if(nEntry){
+          const n = nEntry[1];
+          return `<div style="margin-top:0.7rem;padding-top:0.7rem;border-top:1px dashed var(--line);">
+            <label class="small">NECESIDAD FORMALIZADA</label>
+            <p style="font-size:0.85rem;margin-top:0.3rem;">${escapeHtml(n.necesidad)}</p>
+          </div>`;
+        }
+        if(ro) return '';
+        return `<div style="margin-top:0.7rem;padding-top:0.7rem;border-top:1px dashed var(--line);">
+          <label class="small">FORMALIZAR COMO NECESIDAD (necesidad ≠ compra — describe qué falta, no qué producto adquirir)</label>
+          <div class="qgrid two" style="margin-top:0.4rem;">
+            <div class="qfull"><textarea placeholder="¿Qué necesidad se deriva de esta brecha? (en términos funcionales, sin nombrar producto)" id="nec-necesidad-${b.id}"></textarea></div>
+            <textarea placeholder="Justificación" id="nec-justificacion-${b.id}"></textarea>
+            <textarea placeholder="Resultado esperado" id="nec-resultado-${b.id}"></textarea>
+            <input placeholder="Dependencia" id="nec-dependencia-${b.id}">
+            <input placeholder="Producto F1 asociado" id="nec-productof1-${b.id}">
+            <input placeholder="Potencial relación con Fase 2 (solo referencia, no diseño)" id="nec-fase2-${b.id}" class="qfull">
+          </div>
+          <button class="btn ghost small-btn btn-add-necesidad" data-brecha="${b.id}" style="margin-top:0.5rem;">+ Formalizar necesidad</button>
+        </div>`;
+      })()}
     </div>`;
   }).join('');
 
@@ -2405,6 +2502,23 @@ function renderBrechas(stats){
         if(!descripcion) return;
         addAccion(bid, {descripcion, responsable, fechaLimite});
         renderBrechas(computeStats());
+      });
+    });
+    regEl.querySelectorAll('.btn-add-necesidad').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const bid = btn.dataset.brecha;
+        const necesidad = document.getElementById('nec-necesidad-'+bid).value.trim();
+        if(!necesidad){ alert('Describe la necesidad antes de formalizarla.'); return; }
+        crearNecesidad(bid, {
+          necesidad,
+          justificacion: document.getElementById('nec-justificacion-'+bid).value.trim(),
+          resultadoEsperado: document.getElementById('nec-resultado-'+bid).value.trim(),
+          dependencia: document.getElementById('nec-dependencia-'+bid).value.trim(),
+          productoF1: document.getElementById('nec-productof1-'+bid).value.trim(),
+          potencialFase2: document.getElementById('nec-fase2-'+bid).value.trim(),
+        });
+        renderBrechas(computeStats());
+        renderNecesidades();
       });
     });
   }
@@ -2977,6 +3091,7 @@ function renderAll(){
   renderDashboard(stats);
   renderIndicadores();
   renderBrechas(stats);
+  renderNecesidades();
   renderAnalitica(stats);
   renderModulo(3,'crue');
   renderModulo(4,'sem');
