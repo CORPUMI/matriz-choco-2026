@@ -701,6 +701,13 @@
         <button class="btn ghost" id="btn-reset">Reiniciar levantamiento local</button>
       </div>
     </div>
+
+    <div class="panel" style="margin-top:1rem;">
+      <h4>AUDITORÍA — ÚLTIMOS CAMBIOS</h4>
+      <p style="font-size:0.8rem;color:var(--ink-dim);margin-bottom:0.8rem;">Quién cambió qué, cuándo y qué valor había antes — solo para sobreescrituras de respuestas y brechas ya existentes (crear un registro nuevo no genera entrada aquí).</p>
+      <div id="auditoria-lista"></div>
+      <div class="btnrow"><button class="btn ghost small-btn" id="btn-export-auditoria">Descargar auditoría (CSV)</button></div>
+    </div>
   </section>
 
 </main>
@@ -796,6 +803,7 @@ function loadState(){
     sedes:{},
     normas:{},
     necesidades:{},
+    auditoria:{},
     deviceId: uuid(),
   };
 }
@@ -812,6 +820,7 @@ if(!STATE.prestadores) STATE.prestadores = {};
 if(!STATE.sedes) STATE.sedes = {};
 if(!STATE.normas) STATE.normas = {};
 if(!STATE.necesidades) STATE.necesidades = {};
+if(!STATE.auditoria) STATE.auditoria = {};
 sembrarNormaCritica();
 delete STATE.levantamientoId; // versión anterior guardaba un id aleatorio por equipo; ya no se usa
 
@@ -865,6 +874,27 @@ function clasificarCriticidad(c){
 function getResp(id){
   return STATE.respuestas[id] || {};
 }
+/* ============================================================
+   AUDITORÍA — registra usuario, fecha/hora, campo, valor anterior y
+   valor nuevo cada vez que se SOBREESCRIBE un valor ya existente.
+   No audita creación de registros nuevos (evidencias, acciones, etc.):
+   ahí no hay "valor anterior" que perder — el riesgo real de auditoría
+   está en sobreescribir algo que ya alguien había respondido/calificado.
+   ============================================================ */
+function registrarAuditoria(tabla, registroId, campo, valorAnterior, valorNuevo){
+  if(valorAnterior === valorNuevo) return; // no hubo cambio real
+  if(valorAnterior == null && valorNuevo == null) return;
+  STATE.auditoria = STATE.auditoria || {};
+  const id = uuid();
+  STATE.auditoria[id] = {
+    usuario: (SESSION && SESSION.email) || 'sin sesión (local)',
+    tabla, registroId: String(registroId), campo,
+    valorAnterior: valorAnterior==null?'':String(valorAnterior),
+    valorNuevo: valorNuevo==null?'':String(valorNuevo),
+    fecha: Date.now(), deviceId: STATE.deviceId, syncStatus: 'pending',
+  };
+}
+
 function setResp(id, patch){
   const cur = STATE.respuestas[id] || {};
   const next = Object.assign({}, cur, patch);
@@ -873,6 +903,9 @@ function setResp(id, patch){
   } else {
     next.criticidad = null;
   }
+  Object.keys(patch).forEach(campo=>{
+    registrarAuditoria('respuestas', id, campo, cur[campo], patch[campo]);
+  });
   next.updatedAt = Date.now();
   next.syncStatus = 'pending';
   STATE.respuestas[id] = next;
@@ -1171,6 +1204,20 @@ async function syncNow(){
       if(res.ok) necPendientes.forEach(([id])=>{ STATE.necesidades[id].syncStatus = 'synced'; });
     }
 
+    // 2m) Subir auditoría pendiente (solo inserta — es un registro de solo-escritura, no upsert)
+    const audPendientes = Object.entries(STATE.auditoria||{}).filter(([,a])=>a.syncStatus==='pending');
+    if(audPendientes.length){
+      const payload = audPendientes.map(([id,a])=>({
+        id, levantamiento_id: levId, usuario: a.usuario, tabla: a.tabla, registro_id: a.registroId,
+        campo: a.campo, valor_anterior: a.valorAnterior, valor_nuevo: a.valorNuevo,
+        device_id: a.deviceId, fecha: new Date(a.fecha).toISOString(),
+      }));
+      const res = await fetch(CFG.url + '/rest/v1/auditoria', {
+        method:'POST', headers: Object.assign({}, headers, {'Prefer':'return=minimal'}), body: JSON.stringify(payload),
+      });
+      if(res.ok) audPendientes.forEach(([id])=>{ STATE.auditoria[id].syncStatus = 'synced'; });
+    }
+
     // 3) Traer respuestas de OTROS equipos para el mismo levantamiento (last-write-wins por fecha)
     const pull = await fetch(CFG.url + '/rest/v1/respuestas?levantamiento_id=eq.' + encodeURIComponent(levId), { headers });
     if(pull.ok){
@@ -1255,6 +1302,22 @@ async function syncNow(){
             brechaId: rn.brecha_id, necesidad: rn.necesidad, justificacion: rn.justificacion,
             resultadoEsperado: rn.resultado_esperado, dependencia: rn.dependencia,
             productoF1: rn.producto_f1, potencialFase2: rn.potencial_fase2, syncStatus:'synced',
+          };
+        }
+      });
+    }
+
+    // 3c-ter) Traer auditoría de otros equipos para el mismo levantamiento (solo lectura, informativo)
+    const pullAud = await fetch(CFG.url + '/rest/v1/auditoria?levantamiento_id=eq.' + encodeURIComponent(levId), { headers });
+    if(pullAud.ok){
+      const remAud = await pullAud.json();
+      STATE.auditoria = STATE.auditoria || {};
+      remAud.forEach(ra=>{
+        if(!STATE.auditoria[ra.id]){
+          STATE.auditoria[ra.id] = {
+            usuario: ra.usuario, tabla: ra.tabla, registroId: ra.registro_id, campo: ra.campo,
+            valorAnterior: ra.valor_anterior, valorNuevo: ra.valor_nuevo,
+            fecha: new Date(ra.fecha).getTime(), deviceId: ra.device_id, syncStatus:'synced',
           };
         }
       });
@@ -2486,6 +2549,7 @@ function renderBrechas(stats){
     regEl.querySelectorAll('[data-brecha-field]').forEach(input=>{
       input.addEventListener('change', ()=>{
         const id = input.dataset.brecha, field = input.dataset.brechaField;
+        registrarAuditoria('brechas', id, field, STATE.brechas[id][field], input.value);
         STATE.brechas[id][field] = input.value;
         STATE.brechas[id].updatedAt = Date.now();
         STATE.brechas[id].syncStatus = 'pending';
@@ -3053,6 +3117,30 @@ document.getElementById('btn-reset').addEventListener('click', ()=>{
     renderAll();
   }
 });
+
+function renderAuditoria(){
+  const el = document.getElementById('auditoria-lista');
+  if(!el) return;
+  const entradas = Object.values(STATE.auditoria||{}).sort((a,b)=> b.fecha - a.fecha).slice(0,30);
+  if(!entradas.length){
+    el.innerHTML = '<p style="color:var(--ink-dim);font-size:0.85rem;">Sin cambios registrados todavía.</p>';
+    return;
+  }
+  el.innerHTML = entradas.map(a=>`
+    <div class="evidencia-item" style="margin-bottom:0.4rem;">
+      <div class="ev-top"><strong>${escapeHtml(a.usuario)}</strong> <span style="font-family:var(--mono);font-size:0.65rem;color:var(--ink-dim);">${fmtFechaHora(a.fecha)}</span></div>
+      <div class="ev-desc">${a.tabla} #${escapeHtml(a.registroId)} · campo <strong>${escapeHtml(a.campo)}</strong>: "${escapeHtml(a.valorAnterior)||'—'}" → "${escapeHtml(a.valorNuevo)||'—'}"</div>
+    </div>`).join('');
+}
+document.getElementById('btn-export-auditoria').addEventListener('click', ()=>{
+  const rows = [['usuario','fecha','tabla','registro','campo','valor_anterior','valor_nuevo']];
+  Object.values(STATE.auditoria||{}).sort((a,b)=>a.fecha-b.fecha).forEach(a=>{
+    rows.push([a.usuario, fmtFechaHora(a.fecha), a.tabla, a.registroId, a.campo, a.valorAnterior, a.valorNuevo]);
+  });
+  const csv = rows.map(r=> r.map(csvEscape).join(',')).join('\n');
+  downloadFile('auditoria_' + fileSlug() + '.csv', csv, 'text/csv');
+});
+
 function fileSlug(){
   const c = STATE.contexto;
   return (c.institucion||'sin-institucion').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,30);
@@ -3098,6 +3186,7 @@ function renderAll(){
   renderModulo(5,'cred');
   renderAmbulancias();
   renderSismo();
+  renderAuditoria();
   renderReps();
   renderNormas();
   document.getElementById('informe-contenido').innerHTML = generarInforme();
