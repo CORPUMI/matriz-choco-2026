@@ -336,6 +336,14 @@
     <div class="page-head">
       <div><h2>Dashboard estadístico</h2><p>Madurez, estado de evidencia, criticidad y prioridades — calculados automáticamente.</p></div>
     </div>
+
+    <div class="panel" style="margin-bottom:1.2rem;" id="panel-calidad">
+      <h4>PANEL DE CALIDAD DEL DIAGNÓSTICO</h4>
+      <div id="calidad-semaforo" style="margin-bottom:0.8rem;"></div>
+      <div id="calidad-detalle"></div>
+      <p style="font-size:0.7rem;color:var(--ink-dim);margin-top:0.6rem;">Algunos chequeos del estándar de calidad (evidencia sin pregunta, servicios inconsistentes, indicadores sin fuente) no aplican al modelo de datos actual — se omiten en vez de simularse.</p>
+    </div>
+
     <div class="grid-kpi" id="kpi-dashboard"></div>
     <div class="chartrow">
       <div class="panel"><h4>MADUREZ PROMEDIO POR DIMENSIÓN (0–5)</h4><div id="chart-madurez"></div></div>
@@ -1780,6 +1788,82 @@ function computeStats(){
   return { total, respondidas, sumaMadurez, conMadurez, porDim, estadoCount, critCount, prioridadCount, findings };
 }
 
+/* ============================================================
+   PANEL DE CALIDAD DEL DIAGNÓSTICO (sección 29 del documento)
+   Solo se implementan los chequeos que el modelo de datos actual
+   puede calcular de verdad. Los que no aplican (evidencia sin
+   pregunta, servicios inconsistentes, indicadores sin fuente) se
+   omiten explícitamente en vez de simularse.
+   ============================================================ */
+function calcularCalidad(stats){
+  const checks = [];
+
+  // Preguntas sin responder
+  const sinResponder = stats.total - stats.respondidas;
+  checks.push({nombre:'Preguntas sin responder', cantidad: sinResponder, tipo:'incompleto'});
+
+  // Respuestas "Verificado" sin evidencia asociada
+  let verificadasSinEvidencia = 0;
+  PREGUNTAS.forEach(q=>{
+    const r = getResp(q.id);
+    if(r.estado==='V' && evidenciasFor(q.id).length===0) verificadasSinEvidencia++;
+  });
+  checks.push({nombre:'Marcadas "Verificado" sin evidencia', cantidad: verificadasSinEvidencia, tipo:'pendiente'});
+
+  // Respuestas inconsistentes: "No aplica" pero con calificación de impacto/probabilidad/madurez
+  let incompatibles = 0;
+  PREGUNTAS.forEach(q=>{
+    const r = getResp(q.id);
+    if(r.estado==='NA' && (r.impacto!=null || r.probabilidad!=null || r.madurez!=null)) incompatibles++;
+  });
+  checks.push({nombre:'"No aplica" con calificación cargada (inconsistente)', cantidad: incompatibles, tipo:'inconsistente'});
+
+  // Prestadores/instituciones duplicadas (mismo nombre+municipio)
+  const prestadores = Object.values(STATE.prestadores||{});
+  const clavesPrest = prestadores.map(p=> normalizarTexto(p.nombre)+'|'+normalizarTexto(p.municipio));
+  const duplicadosPrest = clavesPrest.length - new Set(clavesPrest).size;
+  checks.push({nombre:'Instituciones/prestadores duplicados', cantidad: Math.max(0,duplicadosPrest), tipo:'inconsistente'});
+
+  // Sedes duplicadas (misma institución+nombre)
+  const sedes = Object.values(STATE.sedes||{});
+  const clavesSede = sedes.map(s=> normalizarTexto(s.institucion)+'|'+normalizarTexto(s.nombre));
+  const duplicadosSede = clavesSede.length - new Set(clavesSede).size;
+  checks.push({nombre:'Sedes duplicadas', cantidad: Math.max(0,duplicadosSede), tipo:'inconsistente'});
+
+  // Brechas duplicadas (misma pregunta formalizada dos veces)
+  const brechas = Object.values(STATE.brechas||{});
+  const clavesBrecha = brechas.map(b=>b.preguntaId);
+  const duplicadosBrecha = clavesBrecha.length - new Set(clavesBrecha).size;
+  checks.push({nombre:'Brechas duplicadas', cantidad: Math.max(0,duplicadosBrecha), tipo:'inconsistente'});
+
+  // Necesidades duplicadas (misma brecha formalizada dos veces)
+  const necesidades = Object.values(STATE.necesidades||{});
+  const clavesNec = necesidades.map(n=>n.brechaId);
+  const duplicadosNec = clavesNec.length - new Set(clavesNec).size;
+  checks.push({nombre:'Necesidades duplicadas', cantidad: Math.max(0,duplicadosNec), tipo:'inconsistente'});
+
+  // Prestadores de campo sin coordenadas (deberían llevar ubicación al registrarse en sitio)
+  const campoSinGeo = prestadores.filter(p=> p.fuente==='CAMPO' && (p.lat==null || p.lng==null)).length;
+  checks.push({nombre:'Prestadores de campo sin coordenadas', cantidad: campoSinGeo, tipo:'incompleto'});
+
+  // Contexto del levantamiento incompleto (sin responsable, sin sede)
+  const ctx = STATE.contexto||{};
+  const contextoIncompleto = (!ctx.responsable ? 1:0) + (!ctx.sede ? 1:0);
+  checks.push({nombre:'Contexto del levantamiento incompleto (responsable/sede)', cantidad: contextoIncompleto, tipo:'incompleto'});
+
+  const totalInconsistente = checks.filter(c=>c.tipo==='inconsistente').reduce((s,c)=>s+c.cantidad,0);
+  const totalIncompleto = checks.filter(c=>c.tipo==='incompleto').reduce((s,c)=>s+c.cantidad,0);
+  const totalPendiente = checks.filter(c=>c.tipo==='pendiente').reduce((s,c)=>s+c.cantidad,0);
+
+  let semaforo;
+  if(totalInconsistente>0) semaforo = 'INCONSISTENTE';
+  else if(totalIncompleto>0) semaforo = 'INCOMPLETO';
+  else if(totalPendiente>0) semaforo = 'PENDIENTE_DE_VERIFICACION';
+  else semaforo = 'COMPLETO';
+
+  return { checks, semaforo };
+}
+
 /* ---------------- BAR / RADAR HELPERS (SVG-free simple bars) ---------------- */
 function renderBarList(containerId, items, maxVal, colorFn){
   const el = document.getElementById(containerId);
@@ -2072,7 +2156,27 @@ function bindEvidenceBlock(id){
 }
 
 /* ---------------- RENDER: DASHBOARD ---------------- */
+const SEMAFORO_COLOR = {
+  COMPLETO:'var(--verde)', INCOMPLETO:'var(--naranja)',
+  PENDIENTE_DE_VERIFICACION:'var(--amarillo)', INCONSISTENTE:'var(--rojo)',
+};
+const SEMAFORO_LABEL = {
+  COMPLETO:'✓ Completo', INCOMPLETO:'● Incompleto',
+  PENDIENTE_DE_VERIFICACION:'● Pendiente de verificación', INCONSISTENTE:'⚠ Inconsistente',
+};
+function renderCalidad(){
+  const { checks, semaforo } = calcularCalidad(computeStats());
+  const color = SEMAFORO_COLOR[semaforo];
+  document.getElementById('calidad-semaforo').innerHTML =
+    `<span class="crit-tag" style="background:rgba(255,255,255,0.05);color:${color};border:1px solid ${color};font-size:0.9rem;padding:0.5rem 1rem;">${SEMAFORO_LABEL[semaforo]}</span>`;
+  document.getElementById('calidad-detalle').innerHTML = checks.map(c=>{
+    const tipoColor = c.tipo==='inconsistente'?'var(--rojo)':(c.tipo==='pendiente'?'var(--amarillo)':'var(--naranja)');
+    return `<div class="barrow"><div class="lbl" style="width:280px;">${c.nombre}</div><div class="track"></div><div class="num" style="color:${c.cantidad>0?tipoColor:'var(--ink-dim)'}">${c.cantidad}</div></div>`;
+  }).join('');
+}
+
 function renderDashboard(stats){
+  renderCalidad();
   const madurezProm = stats.conMadurez ? (stats.sumaMadurez/stats.conMadurez).toFixed(1) : '0';
   document.getElementById('kpi-dashboard').innerHTML = `
     ${kpi(Math.round((stats.respondidas/stats.total)*100)+'%', 'Avance del instrumento')}
