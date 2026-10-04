@@ -265,6 +265,23 @@
     <div id="dim-detail" style="display:none;">
       <div class="backlink" id="back-to-dims">← Volver a dimensiones</div>
       <h3 id="dim-title" style="margin-bottom:0.9rem;font-size:1.05rem;"></h3>
+
+      <div id="dim-inventario-ambulancias" class="panel" style="margin-bottom:1rem;display:none;">
+        <h4>INVENTARIO DE AMBULANCIAS (SEM)</h4>
+        <p style="font-size:0.78rem;color:var(--ink-dim);margin-bottom:0.8rem;">Registro operativo de la flota, como parte del levantamiento de esta dimensión.</p>
+        <div id="ambulancias-list"></div>
+        <div class="qgrid" id="ambulancia-form" style="margin-top:0.8rem;">
+          <input placeholder="Placa" id="amb-placa">
+          <select id="amb-tipo"><option value="basica">Básica</option><option value="medicalizada">Medicalizada</option></select>
+          <select id="amb-estado"><option value="operativa">Operativa</option><option value="fuera_de_servicio">Fuera de servicio</option><option value="en_mision">En misión</option></select>
+          <button class="btn ghost small-btn" id="btn-add-ambulancia">+ Agregar ambulancia</button>
+        </div>
+        <div class="qgrid two" style="margin-top:0.5rem;">
+          <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" id="amb-geo"> Georreferenciada</label>
+          <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" id="amb-com"> Con comunicación</label>
+        </div>
+      </div>
+
       <div id="dim-questions"></div>
     </div>
   </section>
@@ -419,23 +436,9 @@
 
   <!-- ================= SEM (FASE 10) ================= -->
   <section class="view" id="view-sem">
-    <div class="page-head"><div><h2>SEM Digital</h2><p>Dimensión 4 — SEM y Atención Prehospitalaria, más el registro operativo de ambulancias.</p></div></div>
+    <div class="page-head"><div><h2>SEM Digital</h2><p>Dimensión 4 — SEM y Atención Prehospitalaria. El inventario de ambulancias se registra dentro del Levantamiento de esta dimensión.</p></div></div>
     <div class="grid-kpi" id="kpi-sem"></div>
     <div class="panel" style="margin-bottom:1rem;"><h4>BRECHAS DE ESTA DIMENSIÓN</h4><div id="brechas-sem"></div></div>
-    <div class="panel">
-      <h4>REGISTRO DE AMBULANCIAS</h4>
-      <div id="ambulancias-list"></div>
-      <div class="qgrid" id="ambulancia-form" style="margin-top:0.8rem;">
-        <input placeholder="Placa" id="amb-placa">
-        <select id="amb-tipo"><option value="basica">Básica</option><option value="medicalizada">Medicalizada</option></select>
-        <select id="amb-estado"><option value="operativa">Operativa</option><option value="fuera_de_servicio">Fuera de servicio</option><option value="en_mision">En misión</option></select>
-        <button class="btn ghost small-btn" id="btn-add-ambulancia">+ Agregar ambulancia</button>
-      </div>
-      <div class="qgrid two" style="margin-top:0.5rem;">
-        <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" id="amb-geo"> Georreferenciada</label>
-        <label style="font-size:0.8rem;display:flex;align-items:center;gap:0.4rem;"><input type="checkbox" id="amb-com"> Con comunicación</label>
-      </div>
-    </div>
     <div class="btnrow"><button class="btn ghost" id="btn-ir-sem">Ir al levantamiento de esta dimensión →</button></div>
   </section>
 
@@ -1935,6 +1938,9 @@ function openDim(n){
   document.getElementById('dim-detail').style.display = 'block';
   const dim = DIMENSIONES.find(d=>d.n===n);
   document.getElementById('dim-title').textContent = 'Dimensión '+n+' — '+dim.nombreCompleto.replace(/^DIMENSIÓN \d+\.\s*/,'');
+  // El inventario de ambulancias (SEM) vive dentro del levantamiento de la Dimensión 4
+  document.getElementById('dim-inventario-ambulancias').style.display = (n===4) ? 'block' : 'none';
+  if(n===4) renderAmbulancias();
   renderQuestions(n);
 }
 document.getElementById('back-to-dims').addEventListener('click', ()=>{
