@@ -611,6 +611,8 @@
         <div><label class="small">LATITUD (si se puede tomar en el sitio)</label><input id="campo-lat" type="number" step="any" placeholder="Ej. 5.1547"></div>
         <div><label class="small">LONGITUD (si se puede tomar en el sitio)</label><input id="campo-lng" type="number" step="any" placeholder="Ej. -76.6789"></div>
       </div>
+      <p style="font-size:0.72rem;color:var(--ink-dim);margin-top:0.6rem;">O selecciona el lugar en el mapa (necesita internet) — llena las coordenadas solo:</p>
+      <div id="campo-mini-mapa" style="height:220px;border-radius:8px;overflow:hidden;margin-top:0.5rem;"></div>
       <div class="btnrow"><button class="btn" id="btn-add-campo">+ Registrar prestador encontrado en campo</button></div>
     </div>
 
@@ -1572,6 +1574,9 @@ document.querySelectorAll('.navitem').forEach(item=>{
     }
     if(item.dataset.view === 'mapa'){
       setTimeout(renderMapa, 50); // el contenedor debe estar visible antes de inicializar Leaflet
+    }
+    if(item.dataset.view === 'reps'){
+      setTimeout(initMiniMapaCampo, 50);
     }
     renderAll();
   });
@@ -2726,6 +2731,44 @@ function prestadoresConGeo(){
     .map(([id,p])=>Object.assign({id},p));
 }
 
+// Capas base: Esri (mismo proveedor que KUMA SINAL, que ya funciona en esta red).
+// Calles por defecto + Satélite seleccionable.
+function agregarCapasBase(map){
+  const calles = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri', maxZoom: 19,
+  });
+  const satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri', maxZoom: 19,
+  });
+  calles.addTo(map);
+  L.control.layers({'Calles': calles, 'Satélite': satelite}).addTo(map);
+}
+
+let __miniMapaCampo = null;
+function initMiniMapaCampo(){
+  const cont = document.getElementById('campo-mini-mapa');
+  if(!cont) return;
+  if(typeof L === 'undefined'){
+    cont.innerHTML = '<p style="padding:1rem;color:var(--ink-dim);font-size:0.8rem;">Sin conexión en este momento — puedes seguir escribiendo las coordenadas a mano arriba.</p>';
+    return;
+  }
+  if(__miniMapaCampo){ setTimeout(()=>__miniMapaCampo.invalidateSize(), 100); return; } // ya inicializado, solo ajustar tamaño
+  __miniMapaCampo = L.map('campo-mini-mapa').setView([5.6947, -76.6583], 8);
+  agregarCapasBase(__miniMapaCampo);
+  let marker = null;
+  __miniMapaCampo.on('click', (e)=>{
+    const {lat, lng} = e.latlng;
+    document.getElementById('campo-lat').value = lat.toFixed(6);
+    document.getElementById('campo-lng').value = lng.toFixed(6);
+    if(marker) __miniMapaCampo.removeLayer(marker);
+    marker = L.marker([lat,lng]).addTo(__miniMapaCampo);
+  });
+  // Varios reintentos de ajuste de tamaño: si el contenedor todavía no tenía
+  // su tamaño final en el primer intento (causa más común de "mapa en blanco"
+  // o mal recortado en Leaflet), los siguientes lo corrigen.
+  [100, 300, 700, 1200].forEach(ms=> setTimeout(()=>{ if(__miniMapaCampo) __miniMapaCampo.invalidateSize(); }, ms));
+}
+
 function renderMapa(){
   const cont = document.getElementById('territorio-map');
   const listEl = document.getElementById('territorio-list');
@@ -2755,10 +2798,7 @@ function renderMapa(){
   }
   if(!__map){
     __map = L.map('territorio-map').setView([5.6947, -76.6583], 8); // centro aproximado de Chocó
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd', maxZoom: 20,
-    }).addTo(__map);
+    agregarCapasBase(__map);
     __map.__markers = [];
   }
   __map.__markers.forEach(m=>__map.removeLayer(m));
@@ -2779,7 +2819,7 @@ function renderMapa(){
     return marker;
   });
   __map.__markers = marcadoresPuntos.concat(marcadoresPrestadores);
-  setTimeout(()=>__map.invalidateSize(), 200);
+  [200,600,1200].forEach(ms=> setTimeout(()=>{ if(__map) __map.invalidateSize(); }, ms));
 }
 
 /* ============================================================
@@ -2903,8 +2943,14 @@ document.getElementById('btn-add-campo').addEventListener('click', ()=>{
   };
   saveState(); scheduleAutoSync();
   ['campo-nombre','campo-direccion','campo-telefono','campo-lat','campo-lng'].forEach(f=>document.getElementById(f).value='');
+  limpiarMiniMapaCampo();
   renderReps();
 });
+
+function limpiarMiniMapaCampo(){
+  if(!__miniMapaCampo) return;
+  __miniMapaCampo.eachLayer(layer=>{ if(layer instanceof L.Marker) __miniMapaCampo.removeLayer(layer); });
+}
 
 function prestadoresPorMunicipio(municipio){
   return Object.entries(STATE.prestadores||{})
